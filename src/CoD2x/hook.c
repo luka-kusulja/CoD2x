@@ -60,6 +60,14 @@ BOOL Hook_Load() {
     patch_byte(0x004b9547, 0xEB);
 
 
+    // Turn off "Run in safe mode?" dialog
+    // Showed when game crashes (file __CoD2MP_s is found)
+    patch_nop(0x004664cd, 2);           // 7506 (jne 0x4664d5)  ->  9090 (nop nop)
+    patch_jump(0x004664d3, 0x4664fc);   // 7e27 (jle 0x4664fc)  ->  eb27 (jmp 0x4664fc)
+
+
+
+
     // Patch max FPS
     //  004340d8  bde8030000         mov     ebp, 1000  <- before
     //  004340d8  bdfa000000         mov     ebp, 250   <- after

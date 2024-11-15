@@ -169,14 +169,17 @@ void patch_push(unsigned int targetAddress, void* destinationAddress) {
 
 
 
-/*
- * Modifies the memory at a given address with NOP (No Operation) instructions.
- * It will replace 1 byte.
+/**
+ * @brief Modifies the memory at a given address with NOP (No Operation) instructions.
  * 
- * Example:
- *  patch_nop(0x400000, 2);
- *  0x400000:  00 00 00 00 00         // before
- *  0x400000:  90 90 00 00 00         // after
+ * This function replaces `length` bytes starting from `startAddress` with NOP instructions.
+ * 
+ * @param startAddress The starting address of the memory region to patch.
+ * @param length The number of bytes to patch with NOP instructions.
+ * 
+ * @note ```patch_nop(0x400000, 2);```
+ * @note ```0x400000:  00 00 00 00 00         // before```
+ * @note ```0x400000:  90 90 00 00 00         // after ```
  */
 void patch_nop(unsigned int startAddress, unsigned int length) {
     // Change memory protection to allow writing to the target address
