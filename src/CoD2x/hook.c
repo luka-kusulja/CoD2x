@@ -27,6 +27,10 @@ BOOL __cdecl GfxLoadDll() {
     // Patch gfx_d3d_mp_x86_s.dll
     ///////////////////////////////////////////////////////////////////
 
+    // Force windowed mode instead of fullscreen
+    patch_byte(gfx_module_addr + 0x00012cc4, 0x00);
+
+
     return ret;
 }
 
