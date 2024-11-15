@@ -60,6 +60,25 @@ BOOL Hook_Load() {
     patch_byte(0x004b9547, 0xEB);
 
 
+    // Patch max FPS
+    //  004340d8  bde8030000         mov     ebp, 1000  <- before
+    //  004340d8  bdfa000000         mov     ebp, 250   <- after
+    int max_fps = 250;
+    patch_copy(0x004340d8 + 1, &max_fps, 4);
+
+    // Patch default FPS
+    //  004340d1  bf55000000         mov     edi, 85    <- before
+    //  004340d1  bf7d000000         mov     edi, 125   <- after
+    int default_and_min_fps = 125;
+    patch_copy(0x004340d1 + 1, &default_and_min_fps, 4);
+
+    // Patch min FPS by copying default FPS
+    // Value was 0, since the size of xor instruction is 2 byte, we can just replace it with mov instruction
+    //  004340d6  33db               xor     ebx, ebx  {0}      <- before
+    //  004340d6  89fb               mov     ebx, edi  {125}    <- after
+    patch_byte(0x004340d6, 0x89);
+    patch_byte(0x004340d7, 0xFB);
+
 
     //MessageBox(NULL, "Memory patched successfully!", "Info", MB_OK | MB_ICONINFORMATION);
     return TRUE;
