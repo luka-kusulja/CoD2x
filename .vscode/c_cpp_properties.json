@@ -1,0 +1,25 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/tools/mingw/include",
+                "${workspaceFolder}/CoD2_Client/src/CoD2x",
+                "${workspaceFolder}/CoD2_Client/src/mss32"
+            ],
+            "defines": [],
+            "compilerPath": "${workspaceFolder}/tools/mingw/bin/gcc.exe",
+            "cStandard": "c99",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-gcc-x86",
+            "compilerArgs": [
+                "-Wall",
+                "-Wextra",
+                "-Wno-unused-parameter",
+                "-m32",
+                "-mwindows"
+            ]
+        }
+    ],
+    "version": 4
+}

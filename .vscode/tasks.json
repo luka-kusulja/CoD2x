@@ -1,0 +1,90 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Clean All",
+            "type": "shell",
+            "command": "mingw32-make.exe",
+            "args": ["clean"],
+            "group": {
+                "kind": "build",
+            },
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "PATH": "${env:PATH};${workspaceFolder}/tools/mingw/bin"
+                }
+            }
+        },
+        {
+            "label": "Build MSS+CoD2x Win",
+            "type": "shell",
+            "command": "mingw32-make.exe",
+            "args": ["build_mss_cod2x_win"],
+            "group": {
+                "kind": "build"
+            },
+            "problemMatcher": ["$gcc"],
+            "options": {
+                "env": {
+                    "PATH": "${env:PATH};${workspaceFolder}/tools/mingw/bin"
+                }
+            }
+        },
+        {
+            "label": "Build MSS32",
+            "type": "shell",
+            "command": "mingw32-make.exe",
+            "args": ["build_mss32_win"],
+            "group": {
+                "kind": "build"
+            },
+            "problemMatcher": ["$gcc"],
+            "options": {
+                "env": {
+                    "PATH": "${env:PATH};${workspaceFolder}/tools/mingw/bin"
+                }
+            }
+        },
+        {
+            "label": "Build CoD2x Win",
+            "type": "shell",
+            "command": "mingw32-make.exe",
+            "args": ["build_cod2x_win"],
+            "group": {
+                "kind": "build"
+            },
+            "problemMatcher": ["$gcc"],
+            "options": {
+                "env": {
+                    "PATH": "${env:PATH};${workspaceFolder}/tools/mingw/bin"
+                }
+            }
+        },
+        {
+            "label": "Build CoD2x Linux",
+            "type": "shell",
+            "command": "mingw32-make.exe",
+            "args": ["build_cod2x_linux"],
+            "group": {
+                "kind": "build"
+            },
+            "problemMatcher": ["$gcc"],
+            "options": {
+                "env": {
+                    "PATH": "${env:PATH};${workspaceFolder}/tools/mingw/bin"
+                }
+            }
+        },
+        {
+            "label": "Build All",
+            "dependsOn": [
+                "Build MSS32",
+                "Build CoD2x Win",
+                "Build CoD2x Linux"
+            ],
+            "dependsOrder": "sequence"
+        }
+    ]
+}

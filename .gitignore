@@ -1,0 +1,8 @@
+tools/mingw/**
+obj
+
+bin/windows/servercache.dat
+bin/windows/hunkusage.dat
+bin/windows/main/*.iwd
+bin/windows/main/*.log
+
