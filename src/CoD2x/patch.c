@@ -195,3 +195,22 @@ void patch_nop(unsigned int startAddress, unsigned int length) {
     // Restore the original memory protection settings
     VirtualProtect((void*)startAddress, length, oldProtection, &oldProtection);
 }
+
+
+// Function to patch push string
+void patch_push_string(unsigned int targetAddress, const char* destinationAddress) {
+    // Change memory protection to allow writing to the target address
+    DWORD oldProtection;
+    VirtualProtect((void*)targetAddress, 5, PAGE_EXECUTE_READWRITE, &oldProtection);
+
+    // Write the PUSH opcode (0x68) at the target address
+    *(unsigned char*)targetAddress = 0x68;
+    
+    *(const char **)(targetAddress + 1) = destinationAddress;
+
+    // Flush the CPU instruction cache to ensure the modified instructions are used
+    FlushInstructionCache(GetCurrentProcess(), (void*)targetAddress, 5);
+
+    // Restore the original memory protection settings
+    VirtualProtect((void*)targetAddress, 5, oldProtection, &oldProtection);
+}

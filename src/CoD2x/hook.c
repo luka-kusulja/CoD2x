@@ -66,6 +66,10 @@ BOOL Hook_Load() {
     patch_jump(0x004664d3, 0x4664fc);   // 7e27 (jle 0x4664fc)  ->  eb27 (jmp 0x4664fc)
 
 
+    // Change text in console -> CoD2 MP: 1.3>
+    patch_push_string(0x004064c6, "CoD2x [" APP_VERSION "] MP");
+
+
 
 
     // Patch max FPS

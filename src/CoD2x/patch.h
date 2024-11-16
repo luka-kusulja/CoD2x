@@ -11,5 +11,6 @@ void patch_call(unsigned int targetAddress, unsigned int destinationAddress);
 void patch_jump(unsigned int targetAddress, unsigned int destinationAddress);
 void patch_push(unsigned int targetAddress, void* destinationAddress);
 void patch_nop(unsigned int startAddress, unsigned int length);
+void patch_push_string(unsigned int targetAddress, const char* destinationAddress);
 
 #endif
