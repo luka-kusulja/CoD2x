@@ -78,6 +78,21 @@
             }
         },
         {
+            "label": "Zip",
+            "type": "shell",
+            "command": "mingw32-make.exe",
+            "args": ["zip_win"],
+            "group": {
+                "kind": "build"
+            },
+            "problemMatcher": ["$gcc"],
+            "options": {
+                "env": {
+                    "PATH": "${env:PATH};${workspaceFolder}/tools/mingw/bin};${workspaceFolder}/tools/7zip"
+                }
+            }
+        },
+        {
             "label": "Build All",
             "dependsOn": [
                 "Build MSS32",

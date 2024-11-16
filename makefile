@@ -1,6 +1,7 @@
 # ==========================
 # Directories and Files
 # ==========================
+VERSION = v1_test1
 
 # Output directories
 WIN_BIN_DIR = bin\windows
@@ -8,7 +9,7 @@ LINUX_BIN_DIR = bin\linux
 
 # Targets
 MSS32_WIN_TARGET = $(WIN_BIN_DIR)\mss32.dll
-COD2X_WIN_TARGET = $(WIN_BIN_DIR)\CoD2x_v1_test1.dll
+COD2X_WIN_TARGET = $(WIN_BIN_DIR)\CoD2x_$(VERSION).dll
 COD2X_LINUX_TARGET = $(LINUX_BIN_DIR)\libCoD2x.so
 
 # Source and object directories
@@ -18,6 +19,13 @@ MSS32_WIN_OBJ_DIR = obj\windows\mss32
 COD2X_SRC_DIR = src\CoD2x
 COD2X_WIN_OBJ_DIR = obj\windows\CoD2x
 COD2X_LINUX_OBJ_DIR = obj\linux\CoD2x
+
+# Define source files and target paths
+ZIP_EXEC = 7za.exe
+ZIP_WIN_DIR = zip\windows
+ZIP_WIN_FILES = $(MSS32_WIN_TARGET) bin\windows\mss32_original.dll $(COD2X_WIN_TARGET)
+ZIP_WIN_NAME = CoD2x_$(VERSION)_windows.zip
+ZIP_WIN_OUTPUT = $(ZIP_WIN_DIR)\$(ZIP_WIN_NAME)
 
 # Source files
 MSS32_C_SOURCES = $(wildcard $(MSS32_SRC_DIR)/*.c)
@@ -122,12 +130,42 @@ $(COD2X_LINUX_OBJ_DIR)/%.o: $(COD2X_SRC_DIR)/%.c | $(COD2X_LINUX_OBJ_DIR)
 $(MSS32_WIN_OBJ_DIR) $(COD2X_WIN_OBJ_DIR) $(COD2X_LINUX_OBJ_DIR) $(WIN_BIN_DIR) $(LINUX_BIN_DIR):
 	@if not exist $@ mkdir $@
 
+
+# Rule to create the zip file
+$(ZIP_WIN_OUTPUT): $(ZIP_WIN_FILES) | $(ZIP_WIN_DIR)
+	@echo "Copying files to $(ZIP_WIN_DIR)..."
+	@for %%f in ($(ZIP_WIN_FILES)) do copy %%f $(ZIP_WIN_DIR) >nul
+	@echo "Creating zip archive $(ZIP_WIN_OUTPUT) using 7-Zip..."
+	@echo $(ZIP_EXEC) a -tzip "$(ZIP_WIN_OUTPUT)" "$(ZIP_WIN_DIR)\*"
+	@cd $(ZIP_WIN_DIR) && $(ZIP_EXEC) a -tzip "$(ZIP_WIN_NAME)" *
+	@echo "Zip archive created at $(ZIP_WIN_OUTPUT)."
+
+# Rule to ensure the zip directory exists
+$(ZIP_WIN_DIR):
+	@echo "Creating directory $(ZIP_WIN_DIR)..."
+	@mkdir -p $(ZIP_WIN_DIR)
+
+
+
+# ==========================
+# Zip output files
+# ==========================
+zip_win: zip_win_clean $(ZIP_WIN_OUTPUT)
+
+zip_win_clean:
+	@echo "Cleaning up $(ZIP_WIN_DIR), preserving manual..."
+	@if exist $(ZIP_WIN_DIR) ( \
+	    for %%f in ($(ZIP_WIN_DIR)\*) do if /I not "%%~nxf"=="CoD2x Installation and uninstallation manual.txt" del /Q "%%f" \
+	)
+	@echo "Cleanup up $(ZIP_WIN_DIR) complete."
+
+
 # ==========================
 # Cleaning Up
 # ==========================
 
-clean:
-	@echo "Cleaning up..."
+clean: zip_win_clean
+	@echo "Cleaning up build files..."
 	@if exist $(MSS32_WIN_OBJ_DIR)\*.o del /Q $(MSS32_WIN_OBJ_DIR)\*.o
 	@if exist $(MSS32_WIN_OBJ_DIR)\*.d del /Q $(MSS32_WIN_OBJ_DIR)\*.d
 	@if exist $(COD2X_WIN_OBJ_DIR)\*.o del /Q $(COD2X_WIN_OBJ_DIR)\*.o
@@ -143,4 +181,4 @@ clean:
 # Phony Targets
 # ==========================
 
-.PHONY: all clean build_mss32_win build_cod2x_win build_cod2x_linux
+.PHONY: all clean build_mss32_win build_cod2x_win build_cod2x_linux zip_win zip_win_clean
