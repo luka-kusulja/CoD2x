@@ -12,7 +12,7 @@ static HMODULE originalDll = NULL;
 /*
  * Loads addresses of original functions from mss32_original.dll
  */
-BOOL MSS32_Load() {
+BOOL mss32_load() {
     originalDll = LoadLibrary("mss32_original.dll");
     if (originalDll == NULL) {
         MessageBox(NULL, "Failed to load mss32_original.dll", "Error", MB_OK | MB_ICONERROR);

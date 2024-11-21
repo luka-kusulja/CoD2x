@@ -1,6 +1,6 @@
 {
     "version": "2.0.0",
-    "tasks": [
+    "tasks": [    
         {
             "label": "Clean All",
             "type": "shell",
@@ -13,22 +13,7 @@
             "options": {
                 "cwd": "${workspaceFolder}",
                 "env": {
-                    "PATH": "${env:PATH};${workspaceFolder}/tools/mingw/bin"
-                }
-            }
-        },
-        {
-            "label": "Build MSS+CoD2x Win",
-            "type": "shell",
-            "command": "mingw32-make.exe",
-            "args": ["build_mss_cod2x_win"],
-            "group": {
-                "kind": "build"
-            },
-            "problemMatcher": ["$gcc"],
-            "options": {
-                "env": {
-                    "PATH": "${env:PATH};${workspaceFolder}/tools/mingw/bin"
+                    "PATH": "${workspaceFolder}/tools/mingw/bin;${env:PATH}"
                 }
             }
         },
@@ -43,22 +28,7 @@
             "problemMatcher": ["$gcc"],
             "options": {
                 "env": {
-                    "PATH": "${env:PATH};${workspaceFolder}/tools/mingw/bin"
-                }
-            }
-        },
-        {
-            "label": "Build CoD2x Win",
-            "type": "shell",
-            "command": "mingw32-make.exe",
-            "args": ["build_cod2x_win"],
-            "group": {
-                "kind": "build"
-            },
-            "problemMatcher": ["$gcc"],
-            "options": {
-                "env": {
-                    "PATH": "${env:PATH};${workspaceFolder}/tools/mingw/bin"
+                    "PATH": "${workspaceFolder}/tools/mingw/bin;${env:PATH}"
                 }
             }
         },
@@ -73,7 +43,7 @@
             "problemMatcher": ["$gcc"],
             "options": {
                 "env": {
-                    "PATH": "${env:PATH};${workspaceFolder}/tools/mingw/bin"
+                    "PATH": "${workspaceFolder}/tools/mingw/bin;${env:PATH}"
                 }
             }
         },
@@ -88,7 +58,7 @@
             "problemMatcher": ["$gcc"],
             "options": {
                 "env": {
-                    "PATH": "${env:PATH};${workspaceFolder}/tools/mingw/bin};${workspaceFolder}/tools/7zip"
+                    "PATH": "${workspaceFolder}/tools/mingw/bin;${workspaceFolder}/tools/7zip;${env:PATH}"
                 }
             }
         },

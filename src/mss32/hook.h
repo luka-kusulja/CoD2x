@@ -3,6 +3,6 @@
 
 #include <windows.h>
 
-BOOL Hook_Load(void);
+void hook_load();
 
 #endif

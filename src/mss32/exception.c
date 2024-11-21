@@ -1,26 +1,12 @@
 #include "exception.h"
 #include <windows.h>
-#include <psapi.h>    // For GetModuleInformation
 #include <stdio.h>
 
-void GetModuleNameFromAddress(PVOID address, char *moduleName, size_t moduleNameSize) {
-    HMODULE hModule = NULL;
-
-    // Get the module handle from the address
-    if (GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCTSTR)address, &hModule)) {
-        // Get the module file name
-        if (GetModuleFileNameA(hModule, moduleName, (DWORD)moduleNameSize) == 0) {
-            strncpy(moduleName, "Unknown Module", moduleNameSize);
-        }
-    } else {
-        strncpy(moduleName, "Unknown Module", moduleNameSize);
-    }
-}
 
 /*
  * Exception handler for catching exceptions.
  */
-LONG WINAPI ExceptionHandler(PEXCEPTION_POINTERS ExceptionInfo) {
+LONG WINAPI exception_handler(PEXCEPTION_POINTERS ExceptionInfo) {
     char message[1024];
     DWORD exceptionCode = ExceptionInfo->ExceptionRecord->ExceptionCode;
     PVOID exceptionAddress = ExceptionInfo->ExceptionRecord->ExceptionAddress;
@@ -79,7 +65,7 @@ LONG WINAPI ExceptionHandler(PEXCEPTION_POINTERS ExceptionInfo) {
              (unsigned int)exceptionCode, exceptionName, exceptionAddress, moduleName, hOffset);
 
     // Display the message box with error details
-    MessageBoxA(NULL, message, "Exception Handler", MB_ICONERROR | MB_OK);
+    MessageBoxA(NULL, message, "CoD2x - Exception Handler", MB_ICONERROR | MB_OK);
 
     // Exit the process or continue execution
     ExitProcess(exceptionCode);

@@ -2,31 +2,29 @@
 #ifndef SHARED_H
 #define SHARED_H
 
+#include "cod2.h"
 #include <windows.h>
 #include <stdio.h>  // For snprintf
 
 // Application-wide constants
+#define APP_MODULE_NAME "mss32.dll"
 #define APP_NAME "CoD2x"
-#define APP_VERSION "v1"  // COD2X_RENAME
+#define APP_VERSION "v1_test2"  // COD2X_RENAME
 
-// Helper macros to convert line number to string
-#define STRINGIFY(x) #x
-#define TOSTRING(x) STRINGIFY(x)
 
-// Macro to show a standardized error message box with debug info
-#define SHOW_ERROR(message) \
-    do { \
-        char fullMessage[1024]; \
-        snprintf(fullMessage, sizeof(fullMessage), \
-            "An error occurred in " APP_NAME " module 'mss32.dll' " APP_VERSION ":\n\n" \
-            "%s\n\n" \
-            "File: %s\n" \
-            "Function: %s\n" \
-            "Line: %s\n\n" \
-            "Try reinstalling " APP_NAME " or check for updates. If the issue persists, report the error to developers", \
-            message, __FILE__, __FUNCTION__, TOSTRING(__LINE__) \
-        ); \
-        MessageBox(NULL, fullMessage, APP_NAME " - Error", MB_ICONERROR | MB_OK); \
-    } while(0)
+void getErrorMessage(DWORD errorCode, char* buffer, size_t bufferSize);
+void showErrorBox(const char *file, const char *function, int line, const char *format, ...);
+void showErrorBoxWithLastError(const char *file, const char *function, int line, const char *format, ...);
+void showCoD2ErrorWithLastError(enum errorParm_e code, const char *format, ...);
+
+
+// Macros to preserve __FILE__, __FUNCTION__, and __LINE__
+#define SHOW_ERROR(format, ...) \
+    showErrorBox(__FILE__, __FUNCTION__, __LINE__, format, ##__VA_ARGS__)
+
+#define SHOW_ERROR_WITH_LAST_ERROR(format, ...) \
+    showErrorBoxWithLastError(__FILE__, __FUNCTION__, __LINE__, format, ##__VA_ARGS__)
+
+
 
 #endif // SHARED_H

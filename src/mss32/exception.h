@@ -3,6 +3,6 @@
 
 #include <windows.h>
 
-LONG WINAPI ExceptionHandler(PEXCEPTION_POINTERS ExceptionInfo);
+LONG WINAPI exception_handler(PEXCEPTION_POINTERS ExceptionInfo);
 
 #endif

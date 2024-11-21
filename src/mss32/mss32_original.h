@@ -2,7 +2,7 @@
 #define MSS32_ORIGINAL_H
 
 
-BOOL MSS32_Load(void);
+BOOL mss32_load(void);
 
 
 #endif

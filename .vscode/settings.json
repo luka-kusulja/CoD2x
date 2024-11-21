@@ -1,0 +1,22 @@
+{
+    "files.associations": {
+        "chrono": "c",
+        "functional": "c",
+        "system_error": "cpp",
+        "*.tcc": "cpp",
+        "format": "cpp",
+        "stacktrace": "cpp",
+        "thread": "cpp",
+        "updater.h": "c",
+        "compare": "c",
+        "cstdint": "c",
+        "string.h": "c",
+        "text_encoding": "cpp",
+        "typeindex": "cpp",
+        "typeinfo": "cpp",
+        "mss32_original.h": "c",
+        "cod2.h": "c",
+        "windows.h": "c",
+        "shared.h": "c"
+    }
+}
