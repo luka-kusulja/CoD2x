@@ -9,7 +9,6 @@ https://github.com/eyza-cod2/CoD2x
 --------------------------
 1. Extract the content of the archive to the Call of Duty 2 folder, replacing any existing file:
     - 📄 CoD2x Installation and uninstallation manual.txt
-    - 📄 CoD2x_v1_test1.dll
     - 📄 mss32.dll
     - 📄 mss32_original.dll
 2. Final structure should look like this:
@@ -21,7 +20,6 @@ https://github.com/eyza-cod2/CoD2x
         - 📄 CoD2MP_s.exe
         - 📄 CoD2SP_s.exe
         - 📄 CoD2x Installation and uninstallation manual.txt
-        - 📄 CoD2x_v1_test1.dll
         - 📄 gfx_d3d_mp_x86_s.dll
         - 📄 gfx_d3d_x86_s.dll
         - 📄 mss32.dll
@@ -34,7 +32,6 @@ https://github.com/eyza-cod2/CoD2x
 --------------------------
 1. Delete the following files:
     - 📄 CoD2x Installation and uninstallation manual.txt
-    - 📄 CoD2x_v1_test1.dll
     - 📄 mss32.dll
 2. Rename following file:
     - 📄 mss32_original.dll  ->  📄 mss32.dll

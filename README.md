@@ -3,28 +3,50 @@
 
 CoD2x is modification of Call of Duty 2 client and server.
 
+This "patch" or "extended version" is build on top of 1.3 version.
+
 > :warning: **Testing**: Right now only test version is available. Please just test if that patch is working and then uninstall it. It's not recommended to use it for official matches with anticheat enabled yet.
+
+
 
 # Features
 - Fix: black screen on startup - caused by missing microphone / sound device
+- Fix: requirement to run the game as administrator to fix problems with VirtualStore folder and the need to have write access into Program Files folder (as it was possible in Windows XP)
 - Improvement: windowed mode (now forced, will be configurable in the future)
 - Change: Dialog "Run in safe mode?" is removed
 - Change: Cvar 'com_maxFps' limited from 125 to 250
 - Change: New text in the console to indicate that CoD2x is loaded
+- Change: changed auto-update server with ability to download the latest version of CoD2x
+
+
 
 # Plans
-- Auto update
 - Configurable windowed mode / borderless windowed mode - it might fix the black screen issues with alt-tabbing
 - Set sv_cheats 1 when playing demo
 - Run the game without additional IWD files referenced to fix "iwd sum/name mismatch" error
 - Fix clipping bug by adjusting the player's animation transition time from crouch to stand (would require server-side fix, including linux binaries)
+- translations for mod developers
+- URL protocol to connect to the server from website (cod2://ip:port)
+- Make it possible to show more than 4 servers in server browser on LAN
+- Detect if incorrect version of CoD2 is installed
+- Implementation of 'rinput' features
+- Disable 'Set optional settings' dialog when starting the game
+- Implement 1.4 version with server side patches
+- Implement dynamic version switch between 1.3 and 1.4
+    - 1.3 version -> basic fixes and improvements, without changing the gameplay (like Windows compatibility mode, microphone bug, fullscreen mode, black screen, etc)
+    - 1.4 version -> additional new features, it requires updated server side binaries
+
+
+# Known issues
+- Single player not working
+
+
 
 # How to install
 1. You need original Call of Duty 2 with version [1.3](https://www.moddb.com/games/call-of-duty-2/downloads/call-of-duty-2-pc-patch-v-13) installed.
-2. Download latest version of CoD2x - [CoD2x_v1_test1_windows.zip](https://github.com/eyza-cod2/CoD2x/releases/download/v1_test1/CoD2x_v1_test1_windows.zip)
+2. Download latest version of CoD2x - [CoD2x_v1_test2_windows.zip](https://github.com/eyza-cod2/CoD2x/releases/download/v1_test2/CoD2x_v1_test2_windows.zip)
 3. Extract the content of the archive to the Call of Duty 2 folder, replacing any existing file:
     - 📄 CoD2x Installation and uninstallation manual.txt
-    - 📄 CoD2x_v1_test1.dll
     - 📄 mss32.dll
     - 📄 mss32_original.dll
 4. Final structure should look like this:
@@ -36,7 +58,6 @@ CoD2x is modification of Call of Duty 2 client and server.
         - 📄 CoD2MP_s.exe
         - 📄 CoD2SP_s.exe
         - 📄 **CoD2x Installation and uninstallation manual.txt**
-        - 📄 **CoD2x_v1_test1.dll**
         - 📄 gfx_d3d_mp_x86_s.dll
         - 📄 gfx_d3d_x86_s.dll
         - 📄 **mss32.dll**
@@ -46,7 +67,6 @@ CoD2x is modification of Call of Duty 2 client and server.
 # How to uninstall
 1. Delete the following files:
     - 📄 CoD2x Installation and uninstallation manual.txt
-    - 📄 CoD2x_v1_test1.dll
     - 📄 mss32.dll
 2. Rename following file:
     - 📄 mss32_original.dll  ->  📄 mss32.dll
@@ -61,8 +81,9 @@ CoD2x is modification of Call of Duty 2 client and server.
 # Install for developers
 1. Clone this repository.
 2. Copy .iwd files from original Call of Duty 2 1.3 main folder to `./bin/windows/main` folder in this repository (iw_01..iw_15 and localized_english_iw00..localized_english_iw11)
-3. Instal MinGW-w64 by Brecht Sanders [winlibs-i686-posix-dwarf-gcc-14.2.0](https://github.com/brechtsanders/winlibs_mingw/releases/download/14.2.0posix-19.1.1-12.0.0-msvcrt-r2/winlibs-i686-posix-dwarf-gcc-14.2.0-mingw-w64msvcrt-12.0.0-r2.zip) into `./tools/mingw`
-4. Use VSCode to compile, run and debug
+3. Instal MinGW-w64 by Brecht Sanders [winlibs-i686-posix-dwarf-gcc-14.2.0-mingw-w64msvcrt-12.0.0-r2](https://github.com/brechtsanders/winlibs_mingw/releases/download/14.2.0posix-19.1.1-12.0.0-msvcrt-r2/winlibs-i686-posix-dwarf-gcc-14.2.0-mingw-w64msvcrt-12.0.0-r2.zip) into `./tools/mingw`
+4. Run VSCode as administrator (:warning: needed to be able to run CoD2 also as administrator while debugging)
+5. Use VSCode to compile, run and debug
 
 
 # How it works
@@ -101,3 +122,6 @@ These functions act as a proxy to the original functions in the original mss32.d
 
 When our mss32.dll is loaded, it loads mss32_original.dll and redirect all exported functions.
 It also runs patching process that modifies the game memory to fix some bugs and add new features.
+
+# Logo
+![alt text](images/logo.png)
