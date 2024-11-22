@@ -83,11 +83,15 @@ BOOL hook_patchExecutable() {
 
 
     // Change text in console -> CoD2 MP: 1.3>
-    patch_push_string(0x004064c6, "CoD2x [" APP_VERSION "] MP");
+    patch_string_ptr(0x004064c6 + 1, "CoD2x [" APP_VERSION "] MP");
+    patch_string_ptr(0x004064c1 + 1, "1.3");
+    patch_string_ptr(0x004064cb + 1, "%s: %s> ");
 
 
 
-    patch_push_string(0x0041130a, "master.cod2x.me"); // originaly cod2update.activision.com
+
+
+    patch_string_ptr(0x0041130a + 1, "master.cod2x.me"); // originaly cod2update.activision.com
     /*patch_push_string(0x00411320, ""); // originaly cod2update2.activision.com
     patch_push_string(0x00411338, ""); // originaly cod2update3.activision.com
     patch_push_string(0x00411350, ""); // originaly cod2update4.activision.com
@@ -151,20 +155,6 @@ BOOL hook_patch() {
 }
 
 
-/**
- * Patch the game with exception handler to catch errors
- */
-BOOL hook_patchWithExceptions() {
-    PVOID handler = AddVectoredExceptionHandler(1, exception_handler);
-
-    BOOL ok = hook_patch();
-
-    RemoveVectoredExceptionHandler(handler);
-
-    return ok;
-}
-
-
 
 // Define a buffer to save the original bytes of the entry point
 BYTE originalBytes[5];
@@ -177,34 +167,21 @@ void* originalEntryPoint = NULL;
  */
 void __cdecl hook_newEntryPoint() {
     
-    // Allow modification of the memory at the entry point
-    DWORD oldProtect;
-    if (!VirtualProtect(originalEntryPoint, sizeof(originalBytes), PAGE_EXECUTE_READWRITE, &oldProtect)) {
-        SHOW_ERROR_WITH_LAST_ERROR("Failed to modify memory protection at address %p", originalEntryPoint);
-        return;
-    }
+    PVOID handler = AddVectoredExceptionHandler(1, exception_handler);
 
-    // Restore the original bytes at the entry point
-    memcpy(originalEntryPoint, originalBytes, sizeof(originalBytes));
-
-    // Restore memory protection
-    if (!VirtualProtect(originalEntryPoint, sizeof(originalBytes), oldProtect, &oldProtect)) {
-        SHOW_ERROR_WITH_LAST_ERROR("Failed to restore memory protection at address %p", originalEntryPoint);
-        return;
-    }
-
-    // Flush the instruction cache to make sure CPU reads the new instructions
-    FlushInstructionCache(GetCurrentProcess(), originalEntryPoint, sizeof(originalBytes));
-
+    // Restore the original bytes at the original entry point
+    patch_copy((unsigned int)originalEntryPoint, originalBytes, sizeof(originalBytes));
 
     // Run our code
-    BOOL ok = hook_patchWithExceptions();
+    BOOL ok = hook_patch();
     if (!ok) {
         return;
     }
 
     // Jump back to the original entry point
     ((void (__cdecl *)(void))originalEntryPoint)();
+
+    RemoveVectoredExceptionHandler(handler);
 }
 
 
@@ -224,32 +201,11 @@ BOOL hook_patchEntryPoint() {
     IMAGE_NT_HEADERS* ntHeaders = (IMAGE_NT_HEADERS*)((BYTE*)hModule + dosHeader->e_lfanew);
     originalEntryPoint = (void*)((BYTE*)hModule + ntHeaders->OptionalHeader.AddressOfEntryPoint);
 
-    // Inicialize JMP instruction with jump to relative address
-    BYTE patch[5];
-    patch[0] = 0xE9; // JMP opcode
-    *(int*)&patch[1] = (int)((uintptr_t)hook_newEntryPoint - (uintptr_t)originalEntryPoint - 5);
-
-    // Allow modification of the memory at the entry point
-    DWORD oldProtect;
-    if (!VirtualProtect(originalEntryPoint, sizeof(patch), PAGE_EXECUTE_READWRITE, &oldProtect)) {
-        SHOW_ERROR_WITH_LAST_ERROR("Failed to modify memory protection at address %p", originalEntryPoint);
-        return FALSE;
-    }
-
     // Save the original bytes at the entry point
     memcpy(originalBytes, originalEntryPoint, sizeof(originalBytes));
 
-    // Overwrite the original bytes with JMP instruction
-    memcpy(originalEntryPoint, patch, sizeof(patch));
-
-    // Restore memory protection
-    if (!VirtualProtect(originalEntryPoint, sizeof(patch), oldProtect, &oldProtect)) {
-        SHOW_ERROR_WITH_LAST_ERROR("Failed to restore memory protection at address %p", originalEntryPoint);
-        return FALSE;
-    }
-
-    // Flush the instruction cache to make sure CPU reads the new instructions
-    FlushInstructionCache(GetCurrentProcess(), originalEntryPoint, sizeof(patch));
+    // Patch the entry point with a jump to our new entry point
+    patch_jump((unsigned int)originalEntryPoint, (unsigned int)&hook_newEntryPoint);
 
     return TRUE;
 }

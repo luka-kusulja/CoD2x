@@ -1,31 +1,85 @@
 #include "patch.h"
+#include "shared.h"
 #include <windows.h>
 
-/*
- * Modifies the memory at a given address with a given value, similar to memset.
- * 
- * Example:
- *  patch_fill(0x400000, 0, 3);
- *  0x400000:  01 01 01 01 01         // before
- *  0x400000:  00 00 00 01 01         // after
+/**
+ * Enum representing the type of patch action to perform.
  */
-void patch_fill(unsigned int targetAddress, int value, unsigned int length) {
-    // Change memory protection to allow writing to the target address
-    DWORD oldProtection;
-    VirtualProtect((void*)targetAddress, length, PAGE_EXECUTE_READWRITE, &oldProtection);
+typedef enum {
+    PATCH_ACTION_COPY,
+    PATCH_ACTION_BYTE,
+    PATCH_ACTION_INT32,
+    PATCH_ACTION_STRING_POINTER,
+    PATCH_ACTION_CALL,
+    PATCH_ACTION_JUMP,
+    PATCH_ACTION_PUSH,
+    PATCH_ACTION_NOP
+} PatchAction;
 
-    // Set the specified memory region with the given value
-    memset((void*)targetAddress, value, length);
+/**
+ * Centralized function to handle memory protection, instruction cache flushing, 
+ * and memory modification based on the specified action.
+ * 
+ * @param targetAddress The memory address to patch.
+ * @param source A pointer to the source data (varies by action type).
+ * @param length The number of bytes to modify.
+ * @param action The type of patch action to perform.
+ */
+void patch_memory(unsigned int targetAddress, const void* source, unsigned int length, PatchAction action) {
+    DWORD oldProtection;
+    
+    // Allow modification of the memory at the entry point
+    DWORD oldProtect;
+    if (!VirtualProtect((void*)targetAddress, length, PAGE_EXECUTE_READWRITE, &oldProtection)) {
+        SHOW_ERROR_WITH_LAST_ERROR("Failed to modify memory protection at address %p", targetAddress);
+        ExitProcess(EXIT_FAILURE);
+        return;
+    }
+
+    switch (action) {
+        case PATCH_ACTION_COPY:
+            memcpy((void*)targetAddress, source, length);
+            break;
+        case PATCH_ACTION_BYTE:
+            *(BYTE*)targetAddress = *(BYTE*)source;
+            break;
+        case PATCH_ACTION_INT32:
+            *(INT32*)targetAddress = *(INT32*)source;
+            break;
+        case PATCH_ACTION_STRING_POINTER:
+            *(const char **)(targetAddress) = (const char*)source;
+            break;
+        case PATCH_ACTION_CALL:
+        case PATCH_ACTION_JUMP: {
+            unsigned char opcode = (action == PATCH_ACTION_CALL) ? 0xE8 : 0xE9;
+            *(unsigned char*)targetAddress = opcode;
+            int relativeOffset = *(unsigned int*)source - (targetAddress + 5);
+            memcpy((void*)(targetAddress + 1), &relativeOffset, 4);
+            break;
+        }
+        case PATCH_ACTION_PUSH:
+            *(unsigned char*)targetAddress = 0x68;
+            memcpy((void*)(targetAddress + 1), &source, sizeof(source));
+            break;
+        case PATCH_ACTION_NOP:
+            memset((void*)targetAddress, 0x90, length);
+            break;
+    }
 
     // Flush the CPU instruction cache to ensure the modified instructions are used
     FlushInstructionCache(GetCurrentProcess(), (void*)targetAddress, length);
 
     // Restore the original memory protection settings
-    VirtualProtect((void*)targetAddress, length, oldProtection, &oldProtection);
+    if (!VirtualProtect((void*)targetAddress, length, oldProtection, &oldProtection)) {
+        SHOW_ERROR_WITH_LAST_ERROR("Failed to restore memory protection at address %p", targetAddress);
+        ExitProcess(EXIT_FAILURE);
+        return;
+    }
+
 }
 
 
-/*
+/**
  * Modifies the memory at a given memory region with data from a given source, similar to memcpy.
  * 
  * Example:
@@ -34,23 +88,10 @@ void patch_fill(unsigned int targetAddress, int value, unsigned int length) {
  *  0x400000:  61 62 63 01 01         // after
  */
 void patch_copy(unsigned int targetAddress, void* source, unsigned int length) {
-    // Change memory protection to allow writing to the target address
-    DWORD oldProtection;
-    VirtualProtect((void*)targetAddress, length, PAGE_EXECUTE_READWRITE, &oldProtection);
-
-    // Copy the specified memory region from the source to the target address
-    memcpy((void*)targetAddress, source, length);
-
-    // Flush the CPU instruction cache to ensure the modified instructions are used
-    FlushInstructionCache(GetCurrentProcess(), (void*)targetAddress, length);
-
-    // Restore the original memory protection settings
-    VirtualProtect((void*)targetAddress, length, oldProtection, &oldProtection);
+    patch_memory(targetAddress, source, length, PATCH_ACTION_COPY);
 }
 
-
-
-/*
+/**
  * Modifies the memory at a given address to insert a single byte value.
  * 
  * Example:
@@ -59,158 +100,69 @@ void patch_copy(unsigned int targetAddress, void* source, unsigned int length) {
  *  0x400000:  90 01 01 01 01         // after
  */
 void patch_byte(unsigned int targetAddress, BYTE value) {
-    // Change memory protection to allow writing to the target address
-    DWORD oldProtection;
-    VirtualProtect((void*)targetAddress, 1, PAGE_EXECUTE_READWRITE, &oldProtection);
-
-    // Set the specified memory region with the given value
-    *(BYTE*)targetAddress = value;
-
-    // Flush the CPU instruction cache to ensure the modified instructions are used
-    FlushInstructionCache(GetCurrentProcess(), (void*)targetAddress, 1);
-
-    // Restore the original memory protection settings
-    VirtualProtect((void*)targetAddress, 1, oldProtection, &oldProtection);
+    patch_memory(targetAddress, &value, 1, PATCH_ACTION_BYTE);
 }
 
+/**
+ * Modifies the memory at a given address to insert a 32-bit integer value.
+ * 
+ * Example:
+ *  patch_int32(0x400000, 1234);
+ *  0x400000:  01 01 01 01         // before
+ *  0x400000:  D2 04 00 00         // after
+ */
+void patch_int32(unsigned int targetAddress, INT32 value) {
+    patch_memory(targetAddress, &value, sizeof(INT32), PATCH_ACTION_INT32);
+}
 
+/**
+ * Modifies the memory at a given address to insert an address of string pointer.
+ * 
+ * Example:
+ *  patch_string_ptr(0x400000, "hi");
+ *  0x400000:  01 01 01 01         // before
+ *  0x400000:  xx xx xx xx         // after (address of "hi")
+ */
+void patch_string_ptr(unsigned int targetAddress, const char * value) {
+    patch_memory(targetAddress, value, sizeof(const char *), PATCH_ACTION_STRING_POINTER);
+}
 
-
-
-/*
+/**
  * Modifies the memory at a given address to insert a relative call to a new location.
  * It will replace 5 bytes.
  * 
  * Example:
- *  path_call(0x400000, 0x500000);
- *  0x400000:  e88887eeff  call    sub_466460       // before
- *  0x400000:  e8xxxxxxxx  call    newFunction      // after
+ *  patch_call(0x400000, 0x500000);
+ *  0x400000:  e8 88 87 ee ff  call    sub_466460       // before
+ *  0x400000:  e8 xx xx xx xx  call    newFunction      // after
  */
 void patch_call(unsigned int targetAddress, unsigned int destinationAddress) {
-    // Change memory protection to allow writing to the target address
-    DWORD oldProtection;
-    VirtualProtect((void*)targetAddress, 5, PAGE_EXECUTE_READWRITE, &oldProtection);
-
-    // Write the CALL opcode (0xE8) at the target address
-    *(unsigned char*)targetAddress = 0xE8;
-
-    // Calculate the relative offset for the jump
-    int relativeOffset = destinationAddress - (targetAddress + 5);
-
-    // Write the relative offset to the target address, starting from byte 1 (after the opcode)
-    memcpy((void*)(targetAddress + 1), &relativeOffset, 4);
-
-    // Flush the CPU instruction cache to ensure the modified instructions are used
-    FlushInstructionCache(GetCurrentProcess(), (void*)targetAddress, 5);
-
-    // Restore the original memory protection settings
-    VirtualProtect((void*)targetAddress, 5, oldProtection, &oldProtection);
+    patch_memory(targetAddress, &destinationAddress, 5, PATCH_ACTION_CALL);
 }
 
-
-
-/*
+/**
  * Modifies the memory at a given address to insert an unconditional jump (JMP) to a new location.
  * It will replace 5 bytes.
  * 
  * Example:
  *  patch_jump(0x400000, 0x500000);
- *  0x400000:  e9f87feeff  jmp    sub_466460       // before
- *  0x400000:  e9xxxxxxxx  jmp    newFunction      // after
+ *  0x400000:  e9 f8 7f ee ff  jmp    sub_466460       // before
+ *  0x400000:  e9 xx xx xx xx  jmp    newFunction      // after
  */
 void patch_jump(unsigned int targetAddress, unsigned int destinationAddress) {
-    // Change memory protection to allow writing to the target address
-    DWORD oldProtection;
-    VirtualProtect((void*)targetAddress, 5, PAGE_EXECUTE_READWRITE, &oldProtection);
-
-    // Write the JMP opcode (0xE9) at the target address
-    *(unsigned char*)targetAddress = 0xE9;
-
-    // Calculate the relative offset for the jump
-    int relativeOffset = destinationAddress - (targetAddress + 5);
-
-    // Write the relative offset to the target address, starting from byte 1 (after the opcode)
-    memcpy((void*)(targetAddress + 1), &relativeOffset, 4);
-
-    // Flush the CPU instruction cache to ensure the modified instructions are used
-    FlushInstructionCache(GetCurrentProcess(), (void*)targetAddress, 5);
-
-    // Restore the original memory protection settings
-    VirtualProtect((void*)targetAddress, 5, oldProtection, &oldProtection);
+    patch_memory(targetAddress, &destinationAddress, 5, PATCH_ACTION_JUMP);
 }
-
-
-
-/*
- * Modifies the memory at a given address to insert an push (PUSH) of a string pointer.
- * It will replace 5 bytes.
- * 
- * Example:
- *  patch_push(0x400000, "CoD2");
- *  0x400000:  68ccb65900  push   data_59B6CC      // before
- *  0x400000:  68xxxxxxxx  push   "CoD2"           // after
- */
-void patch_push(unsigned int targetAddress, void* destinationAddress) {
-    // Change memory protection to allow writing to the target address
-    DWORD oldProtection;
-    VirtualProtect((void*)targetAddress, 5, PAGE_EXECUTE_READWRITE, &oldProtection);
-
-    // Write the PUSH opcode (0x68) at the target address
-    *(unsigned char*)targetAddress = 0x68;
-    
-    *(const char **)(targetAddress + 1) = (const char *)destinationAddress;
-
-    // Flush the CPU instruction cache to ensure the modified instructions are used
-    FlushInstructionCache(GetCurrentProcess(), (void*)targetAddress, 5);
-
-    // Restore the original memory protection settings
-    VirtualProtect((void*)targetAddress, 5, oldProtection, &oldProtection);
-}
-
-
 
 /**
- * @brief Modifies the memory at a given address with NOP (No Operation) instructions.
+ * Modifies the memory at a given address with NOP (No Operation) instructions.
  * 
  * This function replaces `length` bytes starting from `startAddress` with NOP instructions.
  * 
- * @param startAddress The starting address of the memory region to patch.
- * @param length The number of bytes to patch with NOP instructions.
- * 
- * @note ```patch_nop(0x400000, 2);```
- * @note ```0x400000:  00 00 00 00 00         // before```
- * @note ```0x400000:  90 90 00 00 00         // after ```
+ * Example:
+ *  patch_nop(0x400000, 2);
+ *  0x400000:  00 00 00 00 00         // before
+ *  0x400000:  90 90 00 00 00         // after
  */
 void patch_nop(unsigned int startAddress, unsigned int length) {
-    // Change memory protection to allow writing to the target address
-    DWORD oldProtection;
-    VirtualProtect((void*)startAddress, length, PAGE_EXECUTE_READWRITE, &oldProtection);
-
-    // Write NOP instructions (0x90) to the specified memory region
-    memset((void*)startAddress, 0x90, length);
-
-    // Flush the CPU instruction cache to ensure the modified instructions are used
-    FlushInstructionCache(GetCurrentProcess(), (void*)startAddress, length);
-
-    // Restore the original memory protection settings
-    VirtualProtect((void*)startAddress, length, oldProtection, &oldProtection);
-}
-
-
-// Function to patch push string
-void patch_push_string(unsigned int targetAddress, const char* destinationAddress) {
-    // Change memory protection to allow writing to the target address
-    DWORD oldProtection;
-    VirtualProtect((void*)targetAddress, 5, PAGE_EXECUTE_READWRITE, &oldProtection);
-
-    // Write the PUSH opcode (0x68) at the target address
-    *(unsigned char*)targetAddress = 0x68;
-    
-    *(const char **)(targetAddress + 1) = destinationAddress;
-
-    // Flush the CPU instruction cache to ensure the modified instructions are used
-    FlushInstructionCache(GetCurrentProcess(), (void*)targetAddress, 5);
-
-    // Restore the original memory protection settings
-    VirtualProtect((void*)targetAddress, 5, oldProtection, &oldProtection);
+    patch_memory(startAddress, NULL, length, PATCH_ACTION_NOP);
 }
