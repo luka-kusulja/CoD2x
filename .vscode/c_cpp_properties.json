@@ -4,8 +4,7 @@
             "name": "Win32",
             "includePath": [
                 "${workspaceFolder}/tools/mingw/include",
-                "${workspaceFolder}/CoD2_Client/src/CoD2x",
-                "${workspaceFolder}/CoD2_Client/src/mss32"
+                "${workspaceFolder}/src/mss32"
             ],
             "defines": [],
             "compilerPath": "${workspaceFolder}/tools/mingw/bin/gcc.exe",
@@ -17,7 +16,9 @@
                 "-Wextra",
                 "-Wno-unused-parameter",
                 "-m32",
-                "-mwindows"
+                "-mwindows",
+                "-shared",
+                "-lstdc++"
             ]
         }
     ],

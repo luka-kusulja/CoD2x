@@ -24,20 +24,20 @@ ZIP_WIN_NAME = CoD2x_$(VERSION)_windows.zip
 ZIP_WIN_OUTPUT = $(ZIP_WIN_DIR)\$(ZIP_WIN_NAME)
 
 # Source files
-MSS32_C_SOURCES = $(wildcard $(MSS32_SRC_DIR)/*.c)
+MSS32_C_SOURCES = $(wildcard $(MSS32_SRC_DIR)/*.cpp)
 
 MSS32_ASM_SOURCES = $(wildcard $(MSS32_SRC_DIR)/*.asm)
 
 # Platform-specific object files
-MSS32_WIN_OBJECTS = $(patsubst $(MSS32_SRC_DIR)/%.c, $(MSS32_WIN_OBJ_DIR)/%.o, $(MSS32_C_SOURCES)) \
+MSS32_WIN_OBJECTS = $(patsubst $(MSS32_SRC_DIR)/%.cpp, $(MSS32_WIN_OBJ_DIR)/%.o, $(MSS32_C_SOURCES)) \
                     $(patsubst $(MSS32_SRC_DIR)/%.asm, $(MSS32_WIN_OBJ_DIR)/%.o, $(MSS32_ASM_SOURCES))
-COD2X_LINUX_OBJECTS = $(patsubst $(COD2X_SRC_DIR)/%.c, $(COD2X_LINUX_OBJ_DIR)/%.o, $(COD2X_C_SOURCES))
+COD2X_LINUX_OBJECTS = $(patsubst $(COD2X_SRC_DIR)/%.cpp, $(COD2X_LINUX_OBJ_DIR)/%.o, $(COD2X_C_SOURCES))
 
 # ==========================
 # Compilation Settings
 # ==========================
 
-CFLAGS = -Wall -Wextra -Wno-unused-parameter -g -m32 -shared -std=c99
+CFLAGS = -Wall -Wextra -Wno-unused-parameter -g -m32 -shared -lstdc++
 # Flag explanations:
 # -Wall: Enable all compiler warnings
 # -Wextra: Enable extra compiler warnings
@@ -45,7 +45,7 @@ CFLAGS = -Wall -Wextra -Wno-unused-parameter -g -m32 -shared -std=c99
 # -g: Include debugging information
 # -m32: Generate 32-bit code
 # -shared: Create a shared library (windows: DLL, linux: SO)
-# -std=c99: Use the C99 standard
+# -lstdc++: Link with the C++ standard library
 
 # Windows toolchain
 WIN_CC = gcc.exe
@@ -80,7 +80,7 @@ $(MSS32_WIN_TARGET): $(MSS32_WIN_OBJECTS)
 	@echo "Linking $@..."
 	$(WIN_CC) $(WIN_CFLAGS) -o $@ $^ $(WIN_LIBS) $(MSS32_SRC_DIR)/mss32.def
 
-$(MSS32_WIN_OBJ_DIR)/%.o: $(MSS32_SRC_DIR)/%.c | $(MSS32_WIN_OBJ_DIR)
+$(MSS32_WIN_OBJ_DIR)/%.o: $(MSS32_SRC_DIR)/%.cpp | $(MSS32_WIN_OBJ_DIR)
 	@echo "Compiling $< for MSS32 (Windows)..."
 	$(WIN_CC) $(WIN_CFLAGS) -MMD -MP -c -o $@ $<
 
@@ -97,7 +97,7 @@ $(COD2X_LINUX_TARGET): $(COD2X_LINUX_OBJECTS) | $(LINUX_BIN_DIR)
 	@echo "Linking $@..."
 	$(LINUX_CC) $(LINUX_CFLAGS) -o $@ $^ $(LINUX_LIBS)
 
-$(COD2X_LINUX_OBJ_DIR)/%.o: $(COD2X_SRC_DIR)/%.c | $(COD2X_LINUX_OBJ_DIR)
+$(COD2X_LINUX_OBJ_DIR)/%.o: $(COD2X_SRC_DIR)/%.cpp | $(COD2X_LINUX_OBJ_DIR)
 	@echo "Compiling $< for CoD2x (Linux)..."
 	$(LINUX_CC) $(LINUX_CFLAGS) -MMD -MP -c -o $@ $<
 
