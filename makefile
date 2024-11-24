@@ -1,7 +1,7 @@
 # ==========================
 # Directories and Files
 # ==========================
-VERSION = v1_test2
+VERSION = v1_test3
 
 # Output directories
 WIN_BIN_DIR = bin\windows

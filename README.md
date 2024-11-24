@@ -44,7 +44,7 @@ This "patch" or "extended version" is build on top of 1.3 version.
 
 # How to install
 1. You need original Call of Duty 2 with version [1.3](https://www.moddb.com/games/call-of-duty-2/downloads/call-of-duty-2-pc-patch-v-13) installed.
-2. Download latest version of CoD2x - [CoD2x_v1_test2_windows.zip](https://github.com/eyza-cod2/CoD2x/releases/download/v1_test2/CoD2x_v1_test2_windows.zip)
+2. Download latest version of CoD2x - [CoD2x_v1_test3_windows.zip](https://github.com/eyza-cod2/CoD2x/releases/download/v1_test3/CoD2x_v1_test3_windows.zip)
 3. Extract the content of the archive to the Call of Duty 2 folder, replacing any existing file:
     - 📄 CoD2x Installation and uninstallation manual.txt
     - 📄 mss32.dll
