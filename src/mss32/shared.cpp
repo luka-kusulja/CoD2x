@@ -30,7 +30,7 @@ void showErrorBox(const char *file, const char *function, int line, const char *
     vsnprintf(message, sizeof(message), format, args);
     va_end(args);
 
-    const char *template = 
+    const char *errorTemplate = 
         "An error occurred in " APP_NAME " module '" APP_MODULE_NAME "' " APP_VERSION ":\n\n"
         "%s\n\n"
         "File: %s\n"
@@ -39,7 +39,7 @@ void showErrorBox(const char *file, const char *function, int line, const char *
         "Try reinstalling " APP_NAME " or check for updates. If the issue persists, report the error to developers.";
 
     char fullMessage[1024 + 512];
-    snprintf(fullMessage, sizeof(fullMessage), template, message, file, function, line);
+    snprintf(fullMessage, sizeof(fullMessage), errorTemplate, message, file, function, line);
 
     MessageBox(NULL, fullMessage, APP_NAME " - Error", MB_ICONERROR | MB_OK);
 }

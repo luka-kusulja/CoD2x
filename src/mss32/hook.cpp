@@ -20,9 +20,9 @@
  * Patch the function that loads gfx_d3d_mp_x86_s.dll
  * Is called only is dedicated = 0
  */
-BOOL __cdecl hook_gfxDll() {
+int __cdecl hook_gfxDll() {
     // Call the original function
-	BOOL ret = ((BOOL (__cdecl *)())0x00464e80)();
+	int ret = ((int (__cdecl *)())0x00464e80)();
 
     //MessageBox(NULL, "GfxLoadDll called!", "Info", MB_OK | MB_ICONINFORMATION);
 
@@ -51,7 +51,7 @@ BOOL __cdecl hook_gfxDll() {
 /**
  * Patch the CoD2MP_s.exe executable
  */
-BOOL hook_patchExecutable() {
+bool hook_patchExecutable() {
     HMODULE hModule = GetModuleHandle(NULL);
     if (hModule == NULL) {
         SHOW_ERROR("Failed to get module handle of current process.");
@@ -131,8 +131,8 @@ BOOL hook_patchExecutable() {
 /**
  * Load the CoD2x patches
  */
-BOOL hook_patch() {  
-    BOOL ok = FALSE;
+bool hook_patch() {  
+    bool ok = FALSE;
 
     // Show warning message
     MessageBoxA(NULL, 
@@ -173,22 +173,23 @@ void __cdecl hook_newEntryPoint() {
     patch_copy((unsigned int)originalEntryPoint, originalBytes, sizeof(originalBytes));
 
     // Run our code
-    BOOL ok = hook_patch();
+    bool ok = hook_patch();
     if (!ok) {
+        ExitProcess(EXIT_FAILURE);
         return;
     }
 
+    RemoveVectoredExceptionHandler(handler);
+
     // Jump back to the original entry point
     ((void (__cdecl *)(void))originalEntryPoint)();
-
-    RemoveVectoredExceptionHandler(handler);
 }
 
 
 /**
  * Hook the application's entry point
  */
-BOOL hook_patchEntryPoint() {
+bool hook_patchEntryPoint() {
     // Get the base address of the application
     HMODULE hModule = GetModuleHandle(NULL);
     if (!hModule) {
@@ -215,7 +216,7 @@ BOOL hook_patchEntryPoint() {
 void hook_load() {
 
     // Hook the application's entry point
-    BOOL ok = hook_patchEntryPoint();
+    bool ok = hook_patchEntryPoint();
 
     if (!ok) {
         ExitProcess(EXIT_FAILURE);

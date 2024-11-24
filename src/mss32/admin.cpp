@@ -50,7 +50,7 @@ int admin_isElevated() {
 /**
  * Set the "Run as Administrator" compatibility flag in the registry for the specified executable.
  */
-BOOL admin_setInRegistry(const char* exePath) {
+bool admin_setInRegistry(const char* exePath) {
     HKEY hKey;
     const char* registryPath = "Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Layers";
     const char* value = "RUNASADMIN"; // Compatibility setting to run as administrator
@@ -97,7 +97,7 @@ BOOL admin_setInRegistry(const char* exePath) {
 }
 
 
-BOOL admin_check() {
+bool admin_check() {
 
     // If the process is already running with elevated privileges, exit
     if (admin_isElevated()) {
@@ -118,7 +118,7 @@ BOOL admin_check() {
 
     if (result == IDYES) {
         
-        BOOL ok = admin_setInRegistry(exePath);
+        bool ok = admin_setInRegistry(exePath);
 
         if (!ok) {
             MessageBoxA(NULL, "Failed to set 'Run as Administrator'.\n\n"

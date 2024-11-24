@@ -5,7 +5,7 @@
 #include <wininet.h>
 
 
-BOOL updater_downloadDLL(const char *url, const char *downloadPath) {
+bool updater_downloadDLL(const char *url, const char *downloadPath) {
     // Initialize WinINet
     HINTERNET hInternet = InternetOpenA("CoD2x " APP_VERSION " Update Downloader", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
     if (!hInternet) {
@@ -109,7 +109,7 @@ void updater() {
 
 
     // Download the DLL
-    BOOL ok = updater_downloadDLL(url, dllFilePathNew);
+    bool ok = updater_downloadDLL(url, dllFilePathNew);
     if (!ok) return;
 
 

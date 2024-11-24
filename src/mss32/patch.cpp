@@ -29,7 +29,6 @@ void patch_memory(unsigned int targetAddress, const void* source, unsigned int l
     DWORD oldProtection;
     
     // Allow modification of the memory at the entry point
-    DWORD oldProtect;
     if (!VirtualProtect((void*)targetAddress, length, PAGE_EXECUTE_READWRITE, &oldProtection)) {
         SHOW_ERROR_WITH_LAST_ERROR("Failed to modify memory protection at address %p", targetAddress);
         ExitProcess(EXIT_FAILURE);

@@ -3,6 +3,6 @@
 
 #include <windows.h>
 
-BOOL admin_check();
+bool admin_check();
 
 #endif // ADMIN_H

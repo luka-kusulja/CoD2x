@@ -3,7 +3,7 @@
 
 // Memory addresses of original functions
 #define FUNCTIONS_COUNT 364
-void* pMSS32_original_functions[FUNCTIONS_COUNT] = { NULL };
+FARPROC pMSS32_original_functions[FUNCTIONS_COUNT] = { NULL };
 
 // Original DLL
 static HMODULE originalDll = NULL;
@@ -12,7 +12,7 @@ static HMODULE originalDll = NULL;
 /*
  * Loads addresses of original functions from mss32_original.dll
  */
-BOOL mss32_load() {
+bool mss32_load() {
     originalDll = LoadLibrary("mss32_original.dll");
     if (originalDll == NULL) {
         MessageBox(NULL, "Failed to load mss32_original.dll", "Error", MB_OK | MB_ICONERROR);
