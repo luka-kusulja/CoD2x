@@ -21,6 +21,25 @@ bool updater_downloadDLL(const char *url, const char *downloadPath) {
         return 0;
     }
 
+    // Check HTTP status code
+    DWORD statusCode = 0;
+    DWORD statusCodeSize = sizeof(statusCode);
+
+    if (!HttpQueryInfoA(hFile, HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER, &statusCode, &statusCodeSize, NULL)) {
+        showCoD2ErrorWithLastError(ERR_DROP, "Failed to query HTTP status code for URL '%s'.", url);
+        InternetCloseHandle(hFile);
+        InternetCloseHandle(hInternet);
+        return 0;
+    }
+
+    // Handle HTTP errors (e.g., 404 Not Found)
+    if (statusCode != 200) {
+        Com_Error(ERR_DROP, "HTTP error %lu encountered for URL '%s'.", statusCode, url);
+        InternetCloseHandle(hFile);
+        InternetCloseHandle(hInternet);
+        return 0;
+    }
+
     // Create file using CreateFile
     HANDLE hLocalFile = CreateFileA(
         downloadPath,
