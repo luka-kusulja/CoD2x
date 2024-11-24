@@ -1,9 +1,7 @@
-#ifndef DVAR_H
-#define DVAR_H
+#ifndef COD2_DVARS_H
+#define COD2_DVARS_H
 
 #include <windows.h>
-
-BOOL Hook_Load(void);
 
 
 enum dvarFlags_e : UINT16
@@ -61,7 +59,7 @@ typedef struct
 {
 	union
 	{
-		BOOL boolean;
+		bool boolean;
 		int integer;
 		float decimal;
 		float vec2[2];
@@ -77,7 +75,7 @@ typedef struct dvar_s
     char const* name;
     enum dvarFlags_e flags;
     enum dvarType_e type;
-    BOOL modified;
+    bool modified;
     dvarValue_t value;
     dvarValue_t latchedValue;
     dvarValue_t defaultValue;
@@ -85,6 +83,16 @@ typedef struct dvar_s
     struct dvar_s* next;
     struct dvar_s* hashNext;
 } dvar_t;
+
+
+void Dvar_SetBool(struct dvar_s* dvar, int value);
+void Dvar_SetStringFromSource(struct dvar_s* dvar, const char* value, int source);
+
+
+#define cl_updateAvailable (*(dvar_t **)(0x0096b644))
+#define cl_updateVersion (*(dvar_t **)(0x0096b640))
+#define cl_updateOldVersion (*(dvar_t **)(0x0096b64c))
+#define cl_updateFiles (*(dvar_t **)(0x0096b5d4))
 
 
 #endif

@@ -72,10 +72,100 @@ bool updater_downloadDLL(const char *url, const char *downloadPath) {
 
 
 
-void updater() {
+
+struct netaddr_s updater_address;
+//#define updater_address (*((struct netaddr_s*)0x00966d48))
+
+bool autoUpdateServer_IsDone = 0;
+
+#if 1
+static const char *autoUpateUri = "master.cod2x.me";
+static INT16 autoUpatePort = 28960;
+#else
+static const char *autoUpateUri = "127.0.0.1";
+static INT16 autoUpatePort = 28961;
+#endif
+
+
+// This function is called on startup to check for updates
+// Original func: 0x0041162f 
+bool updater_sendRequest() {
+
+    if (autoUpdateServer_IsDone)
+        return 0;
+
+    Com_DPrintf("Resolving AutoUpdate Server... ");
+
+    if (!NET_StringToAdr(autoUpateUri, &updater_address))
+    {
+        Com_DPrintf("\nFailed to resolve any Auto-update servers.\n");
+        return 0;
+    }
+
+    updater_address.port = (autoUpatePort >> 8) | (autoUpatePort << 8); // Swap the port bytes
+
+    Com_DPrintf("%i.%i.%i.%i:%i\n", updater_address.ip[0], updater_address.ip[1], updater_address.ip[2], updater_address.ip[3], autoUpatePort);
+
+    // Send the request to the Auto-Update server
+    char* udpPayload = va("getUpdateInfo2 \"%s\" \"%s\" \"%s\"\n", "CoD2x MP", "1.3." APP_VERSION_FULL, "win-x86");
+
+    autoUpdateServer_IsDone = NET_OutOfBandPrint(udpPayload, 0, updater_address);
+    
+    return autoUpdateServer_IsDone;
+}
+
+
+// This function is called when the game receives a response from the Auto-Update server
+// Original func: 0x0040ef9c CL_UpdateInfoPacket()
+void updater_updatePacketResponse(struct netaddr_s addr)
+{
+    if (updater_address.type == NA_BAD) {
+        Com_DPrintf("Auto-Updater has bad address\n");
+        return;
+    }
+
+    UINT16 port = (((UINT32)((BYTE)(addr.port >> 8))) + (((UINT32)addr.port) << 8));
+    
+    Com_DPrintf("Auto-Updater response from %i.%i.%i.%i:%i\n", addr.ip[0], addr.ip[1], addr.ip[2], addr.ip[3], port);
+    
+    if (updater_address.type != addr.type || updater_address.port != addr.port || memcmp(updater_address.ip, addr.ip, 0x4) != 0)
+    {
+        Com_DPrintf("Received update packet from unexpected IP.\n");
+        return;
+    }
+
+    Com_DPrintf("UDP payload: '%s \"%s\" \"%s\" \"%s\"'\n", Cmd_Argv(0), Cmd_Argv(1), Cmd_Argv(2), Cmd_Argv(3));
+
+
+    const char* updateAvailableNumber = Cmd_Argv(1);
+    int updateAvailable = atol(updateAvailableNumber);
+    Dvar_SetBool(cl_updateAvailable, (updateAvailable != 0));
+
+    if (cl_updateAvailable->value.boolean == 0)
+        return;
+    
+    const char* updateFiles = Cmd_Argv(2);
+    Dvar_SetStringFromSource(cl_updateFiles, updateFiles, 0);
+    
+    const char* newVersionString = Cmd_Argv(3);  
+    Dvar_SetStringFromSource(cl_updateVersion, newVersionString, 0);
+
+
+    Dvar_SetStringFromSource(cl_updateOldVersion, "1.3." APP_VERSION_FULL, 0);
+
+    return;
+}
+
+
+
+
+// This function is called when the user confirms the update dialog
+// Original func: 0x0053bc40
+void updater_dialogConfirmed() {
 
     // Define the URL of the DLL file and the temporary download path
-    const char *url = "https://cod2x.me/cod2x/mss32.dll"; // Replace with the actual URL
+    //const char *url = "https://cod2x.me/cod2x/mss32.dll";
+    const char *url = cl_updateFiles->value.string;
     const char destinationFileName[] = "mss32_new.dll";
     const char oldFileName[] = "mss32_old.dll";
     const char currentFileName[] = "mss32.dll";

@@ -3,6 +3,8 @@
 
 void checkForUpdates();
 void downloadUpdate();
-void updater();
+bool updater_sendRequest();
+bool updater_updatePacketResponse(struct netaddr_s addr);
+void updater_dialogConfirmed();
 
 #endif // UPDATER_H
