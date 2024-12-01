@@ -12,7 +12,7 @@ This "patch" or "extended version" is build on top of 1.3 version.
 # Features
 - Fix: black screen on startup - caused by missing microphone / sound device
 - Fix: requirement to run the game as administrator to fix problems with VirtualStore folder and the need to have write access into Program Files folder (as it was possible in Windows XP)
-- Improvement: windowed mode (now forced, will be configurable in the future)
+- Improvement: windowed mode / borderless mode / fullscreen mode (`r_fullscreen`)
 - Change: Dialog "Run in safe mode?" is removed
 - Change: Cvar 'com_maxFps' limited from 125 to 250
 - Change: New text in the console to indicate that CoD2x is loaded
@@ -31,6 +31,8 @@ This "patch" or "extended version" is build on top of 1.3 version.
 - Detect if incorrect version of CoD2 is installed
 - Implementation of 'rinput' features
 - Disable 'Set optional settings' dialog when starting the game
+- Fix MG sensitivity
+- Fix numberic 8 and 2 when typing into console
 - Implement 1.4 version with server side patches
 - Implement dynamic version switch between 1.3 and 1.4
     - 1.3 version -> basic fixes and improvements, without changing the gameplay (like Windows compatibility mode, microphone bug, fullscreen mode, black screen, etc)
@@ -44,7 +46,7 @@ This "patch" or "extended version" is build on top of 1.3 version.
 
 # How to install
 1. You need original Call of Duty 2 with version [1.3](https://www.moddb.com/games/call-of-duty-2/downloads/call-of-duty-2-pc-patch-v-13) installed.
-2. Download latest version of CoD2x - [CoD2x_v1_test3_windows.zip](https://github.com/eyza-cod2/CoD2x/releases/download/v1_test3/CoD2x_v1_test3_windows.zip)
+2. Download latest version of CoD2x - [CoD2x_v1_test4_windows.zip](https://github.com/eyza-cod2/CoD2x/releases/download/v1_test4/CoD2x_v1_test4_windows.zip)
 3. Extract the content of the archive to the Call of Duty 2 folder, replacing any existing file:
     - 📄 CoD2x Installation and uninstallation manual.txt
     - 📄 mss32.dll

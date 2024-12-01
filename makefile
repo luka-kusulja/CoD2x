@@ -1,7 +1,7 @@
 # ==========================
 # Directories and Files
 # ==========================
-VERSION = v1_test3
+VERSION = v1_test4
 
 # Output directories
 WIN_BIN_DIR = bin\windows
@@ -37,7 +37,7 @@ COD2X_LINUX_OBJECTS = $(patsubst $(COD2X_SRC_DIR)/%.cpp, $(COD2X_LINUX_OBJ_DIR)/
 # Compilation Settings
 # ==========================
 
-CFLAGS = -Wall -Wextra -Wno-unused-parameter -g -m32 -shared -lstdc++
+CFLAGS = -Wall -Wextra -Wno-unused-parameter -g -m32 -shared -lstdc++ -O0
 # Flag explanations:
 # -Wall: Enable all compiler warnings
 # -Wextra: Enable extra compiler warnings

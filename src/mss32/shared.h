@@ -11,7 +11,7 @@
 // Application-wide constants
 #define APP_MODULE_NAME "mss32.dll"
 #define APP_NAME "CoD2x"
-#define APP_VERSION "v1_test3"  // COD2X_RENAME
+#define APP_VERSION "v1_test4"  // COD2X_RENAME
 #define APP_VERSION_FULL APP_NAME "_" APP_VERSION    // CoD2x_v•_test•
 
 
