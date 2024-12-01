@@ -164,13 +164,13 @@ void updater_updatePacketResponse(struct netaddr_s addr)
         return;
     
     const char* updateFiles = Cmd_Argv(2);
-    Dvar_SetStringFromSource(cl_updateFiles, updateFiles, 0);
+    Dvar_SetString(cl_updateFiles, updateFiles);
     
     const char* newVersionString = Cmd_Argv(3);  
-    Dvar_SetStringFromSource(cl_updateVersion, newVersionString, 0);
+    Dvar_SetString(cl_updateVersion, newVersionString);
 
 
-    Dvar_SetStringFromSource(cl_updateOldVersion, "1.3." APP_VERSION_FULL, 0);
+    Dvar_SetString(cl_updateOldVersion, "1.3." APP_VERSION_FULL);
 
     return;
 }
