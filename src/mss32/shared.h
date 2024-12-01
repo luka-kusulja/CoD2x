@@ -3,6 +3,8 @@
 #define SHARED_H
 
 #include "cod2.h"
+#include "hook.h"
+
 #include <windows.h>
 #include <stdio.h>  // For snprintf
 

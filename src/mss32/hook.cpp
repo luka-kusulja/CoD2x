@@ -13,8 +13,8 @@
 #include <string.h>
 
 
-
-
+HMODULE hModule;
+unsigned int gfx_module_addr;
 
 /**
  * Patch the function that loads gfx_d3d_mp_x86_s.dll
@@ -35,7 +35,7 @@ int __cdecl hook_gfxDll() {
     }
 
     // Get the base address of the module as integer
-    INT32 gfx_module_addr = (INT32)gfx_module;
+    gfx_module_addr = (unsigned int)gfx_module;
 
     ///////////////////////////////////////////////////////////////////
     // Patch gfx_d3d_mp_x86_s.dll
@@ -51,7 +51,7 @@ int __cdecl hook_gfxDll() {
  * Patch the CoD2MP_s.exe executable
  */
 bool hook_patchExecutable() {
-    HMODULE hModule = GetModuleHandle(NULL);
+    hModule = GetModuleHandle(NULL);
     if (hModule == NULL) {
         SHOW_ERROR("Failed to get module handle of current process.");
         return FALSE;
