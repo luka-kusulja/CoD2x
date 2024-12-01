@@ -6,6 +6,7 @@
 #include "hook.h"
 #include "updater.h"
 #include "admin.h"
+#include "window.h"
 #include "shared.h"
 
 #include <windows.h>
@@ -41,8 +42,7 @@ int __cdecl hook_gfxDll() {
     // Patch gfx_d3d_mp_x86_s.dll
     ///////////////////////////////////////////////////////////////////
 
-    // Force windowed mode instead of fullscreen
-    patch_byte(gfx_module_addr + 0x00012cc4, 0x00);
+    window_hook_rendered();
 
     return ret;
 }
@@ -153,6 +153,11 @@ bool hook_patchExecutable() {
     //  004340d6  89fb               mov     ebx, edi  {125}    <- after
     patch_byte(0x004340d6, 0x89);
     patch_byte(0x004340d7, 0xFB);
+
+
+
+    // Patch window
+    window_hook();
 
 
     //MessageBox(NULL, "Memory patched successfully!", "Info", MB_OK | MB_ICONINFORMATION);
