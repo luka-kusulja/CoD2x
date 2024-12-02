@@ -3,7 +3,7 @@
         {
             "name": "Win32",
             "includePath": [
-                "${workspaceFolder}/tools/mingw/include",
+                "${workspaceFolder}/tools/mingw/i686-w64-mingw32/include",
                 "${workspaceFolder}/src/mss32"
             ],
             "defines": [],
