@@ -7,6 +7,7 @@
 #include "updater.h"
 #include "admin.h"
 #include "window.h"
+#include "fps.h"
 #include "shared.h"
 
 #include <windows.h>
@@ -42,6 +43,8 @@ void __cdecl hook_Com_Init_Dvars() {
 	((void (__cdecl *)())0x00434040)();
 
     window_hook_init_cvars();
+
+    fps_hook_init_cvars();
 }
 
 
@@ -83,6 +86,8 @@ int __cdecl hook_gfxDll() {
  * 00434f70
  */
 void __cdecl hook_Com_Frame() {
+
+    fps_hook_frame();
 
     // Call the original function
 	((void (__cdecl *)())0x00434f70)();
@@ -189,29 +194,12 @@ bool hook_patchExecutable() {
 
 
 
-    // Patch max FPS
-    //  004340d8  bde8030000         mov     ebp, 1000  <- before
-    //  004340d8  bdfa000000         mov     ebp, 250   <- after
-    int max_fps = 250;
-    patch_copy(0x004340d8 + 1, &max_fps, 4);
-
-    // Patch default FPS
-    //  004340d1  bf55000000         mov     edi, 85    <- before
-    //  004340d1  bf7d000000         mov     edi, 125   <- after
-    int default_and_min_fps = 125;
-    patch_copy(0x004340d1 + 1, &default_and_min_fps, 4);
-
-    // Patch min FPS by copying default FPS
-    // Value was 0, since the size of xor instruction is 2 byte, we can just replace it with mov instruction
-    //  004340d6  33db               xor     ebx, ebx  {0}      <- before
-    //  004340d6  89fb               mov     ebx, edi  {125}    <- after
-    patch_byte(0x004340d6, 0x89);
-    patch_byte(0x004340d7, 0xFB);
-
-
 
     // Patch window
     window_hook();
+
+
+    fps_hook();
 
 
     //MessageBox(NULL, "Memory patched successfully!", "Info", MB_OK | MB_ICONINFORMATION);
