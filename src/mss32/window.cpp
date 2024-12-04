@@ -269,8 +269,13 @@ LRESULT CALLBACK CoD2WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
                 // Get window X and Y - lpRect.left and lpRect.top will contain negative values representing the size of the window borders and title bar.
                 AdjustWindowRect(&lpRect, GetWindowLongA(hwnd, GWL_STYLE), 0);
 
-                int xPos = LOWORD(lParam); // X-coordinate
-                int yPos = HIWORD(lParam); // Y-coordinate
+                int xPos = (int)(short)LOWORD(lParam); // X-coordinate
+                int yPos = (int)(short)HIWORD(lParam); // Y-coordinate
+                RECT rect;
+                if (GetWindowRect(hwnd, &rect)) { // Full 32-bit coordinate possible on high-DPI screens
+                    xPos = rect.left; 
+                    yPos = rect.top;
+                }
 
                 Dvar_SetInt(vid_xpos, xPos + lpRect.left);
                 Dvar_SetInt(vid_ypos, yPos + lpRect.top);
