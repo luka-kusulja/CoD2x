@@ -17,6 +17,33 @@
 HMODULE hModule;
 unsigned int gfx_module_addr;
 
+
+
+/**
+ * Com_Init
+ * Is called in WinMain when the game is started
+ * 00434460
+ */
+void __cdecl hook_Com_Init(char* cmdline) {
+
+    // Call the original function
+	((void (__cdecl *)(char*))0x00434460)(cmdline);
+}
+
+
+/**
+ * Com_Init_Dvars
+ * Is called in Com_Init to initialize dvars like dedicated, com_maxfps, developer, logfile, etc..
+ * 00434040
+ */
+void __cdecl hook_Com_Init_Dvars() {
+
+    // Call the original function
+	((void (__cdecl *)())0x00434040)();
+}
+
+
+
 /**
  * Patch the function that loads gfx_d3d_mp_x86_s.dll
  * Is called only is dedicated = 0
@@ -47,6 +74,21 @@ int __cdecl hook_gfxDll() {
     return ret;
 }
 
+
+/**
+ * Com_Frame
+ * Is called in the main loop
+ * 00434f70
+ */
+void __cdecl hook_Com_Frame() {
+
+    // Call the original function
+	((void (__cdecl *)())0x00434f70)();
+}
+
+
+
+
 /**
  * Patch the CoD2MP_s.exe executable
  */
@@ -61,10 +103,20 @@ bool hook_patchExecutable() {
     // Patch CoD2MP_s.exe
     ///////////////////////////////////////////////////////////////////
 
+    // Patch Com_Init
+    patch_call(0x00434a66, (unsigned int)hook_Com_Init);
+
+    // Patch function called in Com_Init that initializes dvars like dedicated, com_maxfps, developer, logfile, etc..
+    patch_call(0x0043455d, (unsigned int)hook_Com_Init_Dvars);
+
     // Patch function that loads gfx_d3d_mp_x86_s.dll
-    // Original: e8c64b0500  call data_464e80
-    // Patched:  e9c64b0500  call GfxLoadDll
-    patch_call(0x004102b5, (int)hook_gfxDll);
+    patch_call(0x004102b5, (unsigned int)hook_gfxDll);
+
+    // Patch Com_Frame
+    patch_call(0x00435282, (unsigned int)hook_Com_Frame);
+
+
+
 
 
     // Patch black screen / long loading on game startup
