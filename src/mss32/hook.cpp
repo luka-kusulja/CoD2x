@@ -27,6 +27,8 @@ unsigned int gfx_module_addr;
  */
 void __cdecl hook_Com_Init(char* cmdline) {
 
+    //MessageBoxA(NULL, cmdline, "CoD2x", MB_OK | MB_ICONINFORMATION);
+
     // Call the original function
 	((void (__cdecl *)(char*))0x00434460)(cmdline);
 }
@@ -137,6 +139,14 @@ bool hook_patchExecutable() {
     // Showed when game crashes (file __CoD2MP_s is found)
     patch_nop(0x004664cd, 2);           // 7506 (jne 0x4664d5)  ->  9090 (nop nop)
     patch_jump(0x004664d3, 0x4664fc);   // 7e27 (jle 0x4664fc)  ->  eb27 (jmp 0x4664fc)
+
+
+    // Turn off "Set Optimal Settings?" and "Recommended Settings Update" dialog
+    patch_nop(0x004345c3, 5);           // e818f9ffff call sub_433ee0
+    patch_nop(0x0042d1a7, 5);           // e8346d0000 call sub_433ee0
+
+
+
 
 
     // Change text in console -> CoD2 MP: 1.3>
