@@ -241,12 +241,6 @@ LRESULT CALLBACK CoD2WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
             win_hwnd = hwnd;
             win_wheelRool = RegisterWindowMessageA("MSWHEEL_ROLLMSG");
 
-            vid_xpos = Dvar_RegisterInt("vid_xpos", 3, -100000, 100000, (enum dvarFlags_e)(DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET));
-            vid_ypos = Dvar_RegisterInt("vid_ypos", 22, -100000, 100000, (enum dvarFlags_e)(DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET));
-            r_fullscreen = Dvar_RegisterBool("r_fullscreen", true, (enum dvarFlags_e)(DVAR_ARCHIVE | DVAR_LATCH | DVAR_CHANGEABLE_RESET));
-            r_autopriority = Dvar_RegisterBool("r_autopriority", false, (enum dvarFlags_e)(DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET));
-            m_debug = Dvar_RegisterBool("m_debug", false, (enum dvarFlags_e)(DVAR_CHANGEABLE_RESET));
-
             callOriginal = false;        
             break;
 
@@ -435,27 +429,31 @@ int R_CreateWindow()
 
 
 
-// 0x1001309c - original function loading cvars R_*
-void __stdcall R_InitCvarsAll() {
-
-    // Change flags of r_fullscreen cvar - removed original DVAR_ROM flag - now user can change the value
-    patch_int32(gfx_module_addr + 0x000ba43 + 1, (DVAR_ARCHIVE | DVAR_LATCH | DVAR_CHANGEABLE_RESET | DVAR_RENDERER));
-
-    // Call the original function
-	((void (__stdcall *)())(gfx_module_addr + 0x0000aaf0))();
-}
-
-
-
+// Called when the game loaded the renderer DLL
 void window_hook_rendered() {
 
     // Patch the function that creates the window
     patch_call(gfx_module_addr + 0x00012d69, (unsigned int)R_CreateWindow);
-    
-    // Call init cvars
-    patch_call(gfx_module_addr + 0x0001309c, (unsigned int)R_InitCvarsAll);
+
+    // Change flags of r_fullscreen cvar - removed original DVAR_ROM flag - now user can change the value
+    patch_int32(gfx_module_addr + 0x000ba43 + 1, (DVAR_ARCHIVE | DVAR_LATCH | DVAR_CHANGEABLE_RESET | DVAR_RENDERER));
+
 }
 
+// Called when the game initializes cvars (Com_Init)
+void window_hook_init_cvars() {
+    // We need to register cvars here to fix the issue caused by registering cvars in renderer that are also referenced in CoD2MP_s.exe
+    // Cvars that get first registered in renderer DLL have strings allocated in renderer DLL, so when vid_restart is called, the renderer DLL is unloaded and the strings are freed.
+    // So we need to register the cvars in this DLL where the strings will be allocated for the whole time of the game.
+    vid_xpos = Dvar_RegisterInt("vid_xpos", 3, -100000, 100000, (enum dvarFlags_e)(DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET));
+    vid_ypos = Dvar_RegisterInt("vid_ypos", 22, -100000, 100000, (enum dvarFlags_e)(DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET));
+    r_fullscreen = Dvar_RegisterBool("r_fullscreen", true, (enum dvarFlags_e)(DVAR_ARCHIVE | DVAR_LATCH | DVAR_CHANGEABLE_RESET));
+    r_autopriority = Dvar_RegisterBool("r_autopriority", false, (enum dvarFlags_e)(DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET));
+
+    m_debug = Dvar_RegisterBool("m_debug", false, (enum dvarFlags_e)(DVAR_CHANGEABLE_RESET));
+}
+
+// Called before the game is started
 void window_hook() {
     // Hook the game window procedure
     patch_int32(0x004663D1 + 4, (unsigned int)&CoD2WindowProc);

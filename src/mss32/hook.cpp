@@ -40,6 +40,8 @@ void __cdecl hook_Com_Init_Dvars() {
 
     // Call the original function
 	((void (__cdecl *)())0x00434040)();
+
+    window_hook_init_cvars();
 }
 
 
