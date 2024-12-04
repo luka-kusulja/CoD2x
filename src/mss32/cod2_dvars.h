@@ -63,9 +63,9 @@ typedef struct
 		bool boolean;
 		int integer;
 		float decimal;
-		float vec2[2];
-		float vec3[3];
-		float vec4[4];
+		float* vec2;
+		float* vec3;
+		float* vec4;
 		const char *string;
 		unsigned char color[4];
 	};
