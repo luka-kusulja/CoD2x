@@ -107,15 +107,16 @@ void Mouse_Loop()
             cursorRelativePoint = cursorPoint;
             ScreenToClient(win_hwnd, &cursorRelativePoint);
 
-            if (m_debug->value.boolean)
-                Com_Printf("Windows cursor: %d %d (%d, %d)\n", cursorRelativePoint.x, cursorRelativePoint.y, cursorPoint.x, cursorPoint.y);
-
             // Cursor is outside the inner area of the window
-            if (cursorRelativePoint.x <= clientRect.left || cursorRelativePoint.x >= clientRect.right || 
-                cursorRelativePoint.y <= clientRect.top || cursorRelativePoint.y >= clientRect.bottom)
-            {
+            bool cursorIsOutside = 
+                cursorRelativePoint.x <= clientRect.left || cursorRelativePoint.x >= clientRect.right || 
+                cursorRelativePoint.y <= clientRect.top || cursorRelativePoint.y >= clientRect.bottom;
+
+            if (m_debug->value.boolean)
+                Com_Printf("Windows cursor: client(%d %d) screen(%d, %d) isOutside:%i\n", cursorRelativePoint.x, cursorRelativePoint.y, cursorPoint.x, cursorPoint.y, cursorIsOutside);
+
+            if (cursorIsOutside)
                 return;
-            }
 
             // Scale the cursor position to the game window in 640x480 resolution
             // So if width is 1280 and cursor is at 1280, it will be 640 in 640x480 resolution
@@ -125,84 +126,100 @@ void Mouse_Loop()
             mouse_ingameMouseActive = 1;
             Mouse_ActivateIngameCursor();
 
-            return;
+            if (m_debug->value.boolean)
+                Com_Printf("  activated ingame cursor at (%d %d), cursor set to center at (%d %d)\n", menu_cursorX, menu_cursorY, mouse_center_x, mouse_center_y);
+
+            Sleep(1); // give OS a time to set new cursor position
+
+            return; // since we set new window cursor position, we need next frame to process the movement
         }
 
         int32_t x_offset = (cursorPoint.x - mouse_center_x);
         int32_t y_offset = (cursorPoint.y - mouse_center_y);
-        
-        SetCursorPos(mouse_center_x, mouse_center_y);
-
 
         if ((x_offset != 0 || y_offset != 0))
         {
-            if ((input_mode & 8) != 0) // in menu
+            int in_menu = (input_mode & 8) != 0;
+            int bypass_menu = cl_bypassMouseInput->value.boolean;
+
+            // In game (or quickmessages menu opened - bypassed by cvar)
+            if (in_menu == false || bypass_menu) {
+                // 2 dimensional array of mouse offsets used for mouse filtering and game movement
+                // index is being swapped between 0 and 1
+                mouse_offset_x_arr[mouse_offset_index] += x_offset;
+                mouse_offset_y_arr[mouse_offset_index] += y_offset;
+            }
+
+            // In menu (without menu cursor bypassing)
+            if (in_menu && bypass_menu == false)
             {
-                if (!cl_bypassMouseInput->value.boolean) // quickmessages allows menu without mouse cursor
+                int newMenuX = menu_cursorX + x_offset;
+                int newMenuY = menu_cursorY + y_offset;
+
+                if (m_debug->value.boolean)
+                    Com_Printf("Menu cursor: menu(%d %d) menu_new(%d %d)\n", menu_cursorX, menu_cursorY, newMenuX, newMenuY);
+
+                // If the cursor is outside of the window in windowed mode, move it back inside
+                if (r_fullscreen->value.boolean == false && (newMenuX < 0 || newMenuX > 640 || newMenuY < 0 || newMenuY > 480))
                 {
-                    int newMenuX = menu_cursorX + x_offset;
-                    int newMenuY = menu_cursorY + y_offset;
+                    // Set cursor outside of the window (outside of client area)
 
-                    // If the cursor is outside of the window in windowed mode, move it back inside
-                    if (r_fullscreen->value.boolean == false && (newMenuX < 0 || newMenuX > 640 || newMenuY < 0 || newMenuY > 480))
-                    {
-                        // Set cursor outside of the window (outside of client area)
+                    // Get the client area dimensions
+                    int clientWidth = clientRect.right - clientRect.left;
+                    int clientHeight = clientRect.bottom - clientRect.top;
 
-                        // First scale the menu cursor position in 640x480 resolution to the window client area
-                        int clientX = (newMenuX * (clientRect.right - clientRect.left)) / 640;
-                        int clientY = (newMenuY * (clientRect.bottom - clientRect.top)) / 480;
+                    // First scale the menu cursor position in 640x480 resolution to the window client area
+                    int clientX = (newMenuX * clientWidth) / 640;
+                    int clientY = (newMenuY * clientHeight) / 480;
 
-                        // Make sure the cursor is outside the client area atleast by 1 pixel
-                        if (clientX <= 0) clientX--;
-                        else if (clientX >= 640) clientX++;
-                        if (clientY <= 0) clientY--;
-                        else if (clientY >= 480) clientY++;
+                    // Make sure the cursor is outside the client area atleast by 1 pixel
+                    if (clientX <= 0) clientX--;
+                    else if (clientX >= clientWidth) clientX++;
+                    if (clientY <= 0) clientY--;
+                    else if (clientY >= clientHeight) clientY++;
+                
+                    // Now convert the client area position to the screen position
+                    POINT screenPoint = {clientX, clientY};
+                    ClientToScreen(win_hwnd, &screenPoint);
+
+                    HMONITOR monitor = MonitorFromPoint(screenPoint, MONITOR_DEFAULTTONULL);
                     
-                        // Now convert the client area position to the screen position
-                        POINT screenPoint = {clientRect.left + clientX, clientRect.top + clientY};
-                        ClientToScreen(win_hwnd, &screenPoint);
-
-                        HMONITOR monitor = MonitorFromPoint(screenPoint, MONITOR_DEFAULTTONULL);
-                        
-                        if (m_debug->value.boolean)
-                            Com_Printf("Cursor switch: menu(%d %d) client(%d %d) screen(%d %d) valid:%i \n", newMenuX, newMenuY, clientX, clientY, screenPoint.x, screenPoint.y, monitor != NULL);
-
-                        // The new cursor position is a valid position on any monitor (it might in invalid when cursor is moved towards the edge of the screen)
-                        if (monitor != NULL)
-                        {
-                            // Show the cursor position outside of the window
-                            SetCursorPos(screenPoint.x, screenPoint.y);
-                            Mouse_DeactivateIngameCursor();
-                            return;
-                        }
-                    }
-                    
-                    // Make sure the cursor is inside the window
-                    if (newMenuX < 0) newMenuX = 0;
-                    else if (newMenuX > 640) newMenuX = 640;
-                    if (newMenuY < 0) newMenuY = 0;
-                    else if (newMenuY > 480) newMenuY = 480;
-
-                    menu_cursorX = newMenuX;
-                    menu_cursorY = newMenuY;
-
                     if (m_debug->value.boolean)
-                        Com_Printf("Menu cursor: %d %d\n", newMenuX, newMenuY);
+                        Com_Printf("  switch to window cursor at client(%d %d) valid:%i \n", clientX, clientY, monitor != NULL);
 
-                    if (menu_opened) {
-                        // Original function to process mouse movement
-                        ((void (__cdecl*)(void* data, void* arg2, int32_t x, int32_t y))0x00542d60)(*((void**)0x005dcb10), nullptr, newMenuX, newMenuY);                  
+                    // The new cursor position is a valid position on any monitor (it might in invalid when cursor is moved towards the edge of the screen)
+                    if (monitor != NULL)
+                    {
+                        // Show the cursor position outside of the window
+                        SetCursorPos(screenPoint.x, screenPoint.y);
+                        Mouse_DeactivateIngameCursor();
+
+                        if (m_debug->value.boolean)
+                            Com_Printf("  deactivated ingame cursor, set windows cursor at (%d %d)\n", screenPoint.x, screenPoint.y);
+            
+                        Sleep(1); // give OS a time to set new cursor position
+                        
+                        return;
                     }
+                }
+                
+                // Make sure the cursor is inside the window
+                if (newMenuX < 0) newMenuX = 0;
+                else if (newMenuX > 640) newMenuX = 640;
+                if (newMenuY < 0) newMenuY = 0;
+                else if (newMenuY > 480) newMenuY = 480;
 
-                    return;
+                menu_cursorX = newMenuX;
+                menu_cursorY = newMenuY;
+
+                if (menu_opened) {
+                    // Original function to process mouse movement
+                    ((void (__cdecl*)(void* data, void* arg2, int32_t x, int32_t y))0x00542d60)(*((void**)0x005dcb10), nullptr, newMenuX, newMenuY);                  
                 }
             }
-            
-            // 2 dimensional array of mouse offsets used for mouse filtering and game movement
-            // index is being swapped between 0 and 1
-            mouse_offset_x_arr[mouse_offset_index] += x_offset;
-            mouse_offset_y_arr[mouse_offset_index] += y_offset;
         } 
+
+        SetCursorPos(mouse_center_x, mouse_center_y);
 
         return;
     }
