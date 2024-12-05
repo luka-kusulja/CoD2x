@@ -42,7 +42,10 @@
 #define input_mode                  (*((int*)0x0096b654))
 
 dvar_t* m_debug;
+dvar_t* m_rinput;
 
+long rinput_x = 0;
+long rinput_y = 0;
 
 
 // 004648e0
@@ -74,6 +77,38 @@ void Mouse_ActivateIngameCursor()
 }
 
 
+void rinput_register() {
+    RAWINPUTDEVICE rid[1];
+    rid[0].usUsagePage = 0x01;  // Generic desktop controls
+    rid[0].usUsage = 0x02;      // Mouse
+    rid[0].dwFlags = 0;         // Default behavior (foreground capture)
+    rid[0].hwndTarget = win_hwnd;   // Target window for raw input messages
+
+    if (!RegisterRawInputDevices(rid, 1, sizeof(rid[0]))) {
+        Com_Printf("Failed to register raw input device. Error: %lu\n", GetLastError());
+        return;
+    }
+
+    rinput_x = 0;
+    rinput_y = 0;
+
+    Com_Printf("Registered raw input device\n");
+}
+
+void rinput_unregister() {
+    RAWINPUTDEVICE rid[1];
+    rid[0].usUsagePage = 0x01; // Generic Desktop Controls
+    rid[0].usUsage = 0x02;     // Mouse
+    rid[0].dwFlags = RIDEV_REMOVE; // Unregister this device
+    rid[0].hwndTarget = NULL;  // Must be NULL when removing devices
+
+    if (!RegisterRawInputDevices(rid, 1, sizeof(rid[0]))) {
+        Com_Printf("Failed to unregister raw input device. Error: %lu\n", GetLastError());
+        return;
+    }
+
+    Com_Printf("Unregistered raw input device\n");
+}
 
 
 
@@ -86,6 +121,21 @@ void Mouse_Loop()
         return;
 
     // Originally the cursor was showed in windowed move when console was opened, thats has been removed
+
+
+    // If the raw input cvar has been modified
+    if (m_rinput->modified) {
+        m_rinput->modified = false;
+
+        if (m_rinput->value.boolean) {
+            rinput_register();
+        } else {
+            rinput_unregister();
+        }
+
+        Mouse_ActivateIngameCursor();
+    }
+
 
     if (mouse_windowIsActive)
     {
@@ -126,6 +176,9 @@ void Mouse_Loop()
             mouse_ingameMouseActive = 1;
             Mouse_ActivateIngameCursor();
 
+            rinput_x = 0;
+            rinput_y = 0;
+
             if (m_debug->value.boolean)
                 Com_Printf("  activated ingame cursor at (%d %d), cursor set to center at (%d %d)\n", menu_cursorX, menu_cursorY, mouse_center_x, mouse_center_y);
 
@@ -136,6 +189,15 @@ void Mouse_Loop()
 
         int32_t x_offset = (cursorPoint.x - mouse_center_x);
         int32_t y_offset = (cursorPoint.y - mouse_center_y);
+
+        // When raw input is enabled, use the raw input offsets
+        if (m_rinput->value.boolean)
+        {
+            x_offset = rinput_x;
+            y_offset = rinput_y;
+            rinput_x = 0;
+            rinput_y = 0;
+        }
 
         if ((x_offset != 0 || y_offset != 0))
         {
@@ -230,29 +292,32 @@ void Mouse_Loop()
 
 
 
-
 // 00468db0
 LRESULT CALLBACK CoD2WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     bool callOriginal = true;
 
     switch (uMsg)
     {
-        case WM_CREATE:
+        case WM_CREATE: {
             win_hwnd = hwnd;
             win_wheelRool = RegisterWindowMessageA("MSWHEEL_ROLLMSG");
 
+            if (m_rinput->value.boolean)
+                rinput_register();
+
             callOriginal = false;        
             break;
+        }
 
 
-        case WM_DESTROY:
+        case WM_DESTROY: {
             win_hwnd = NULL;
             callOriginal = false;
             break;
-
+        }
 
         // Called when the window is moved
-        case WM_MOVE:
+        case WM_MOVE: {
             if (r_fullscreen->value.integer == 0) // Windowed mode
             {
                 RECT lpRect;
@@ -286,9 +351,10 @@ LRESULT CALLBACK CoD2WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
             callOriginal = false;
 
             break;
+        }
 
         // Called when the window is activated or deactivated with minimized state
-        case WM_ACTIVATE:
+        case WM_ACTIVATE: {
 			bool bActivated = LOWORD(wParam) != WA_INACTIVE; // was activated (WA_ACTIVE or WA_CLICKACTIVE, not WA_INACTIVE)
 			bool bMinimized = HIWORD(wParam) != 0;
 
@@ -314,6 +380,34 @@ LRESULT CALLBACK CoD2WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
             callOriginal = false;
 
             break;
+        }
+
+        // Called when raw input is received
+        case WM_INPUT: {
+            UINT dwSize;
+            GetRawInputData((HRAWINPUT)lParam, RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER));
+
+            LPBYTE lpb = (LPBYTE)malloc(dwSize);
+            if (!lpb) break;
+
+            if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, lpb, &dwSize, sizeof(RAWINPUTHEADER)) == dwSize) {
+                RAWINPUT* raw = (RAWINPUT*)lpb;
+
+                if (raw->header.dwType == RIM_TYPEMOUSE) {
+                    // Extract raw mouse data
+                    int deltaX = raw->data.mouse.lLastX;
+                    int deltaY = raw->data.mouse.lLastY;
+
+                    // Offsets for the mouse movement in loop function
+                    rinput_x += deltaX;
+                    rinput_y += deltaY;
+                }
+            }
+
+            free(lpb);
+            break;
+        }
+
     }
 
     if (!callOriginal) {
@@ -451,6 +545,7 @@ void window_hook_init_cvars() {
     r_autopriority = Dvar_RegisterBool("r_autopriority", false, (enum dvarFlags_e)(DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET));
 
     m_debug = Dvar_RegisterBool("m_debug", false, (enum dvarFlags_e)(DVAR_CHANGEABLE_RESET));
+    m_rinput = Dvar_RegisterBool("m_rinput", false, (enum dvarFlags_e)(DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET));
 }
 
 // Called before the game is started
