@@ -12,25 +12,29 @@ This "patch" or "extended version" is build on top of 1.3 version.
 # Features
 - Fix: black screen on startup - caused by missing microphone / sound device
 - Fix: requirement to run the game as administrator to fix problems with VirtualStore folder and the need to have write access into Program Files folder (as it was possible in Windows XP)
-- Improvement: windowed mode / borderless mode / fullscreen mode (`r_fullscreen`)
-- Change: Dialog "Run in safe mode?" is removed
-- Change: Cvar 'com_maxFps' limited from 125 to 250
-- Change: New text in the console to indicate that CoD2x is loaded
+- Improvement: windowed and borderless window mode
+    - windowed mode: `r_fullscreen 0`
+    - borderless mode: `r_fullscreen 0` and `r_mode [screen resolution]`
+    - fullscreen mode: `r_fullscreen 1` (default)
+- Improvement: rinput (raw input for mouse movement) 
+    - enabled: `m_rinput 1` (raw mouse movement, not affected by Windows settings)
+    - disabled: `m_rinput 0` (default)
+- Improvement: possibility to limit restrict FPS to range 125 - 250 via mod (like zPAM) using new cvar `com_maxfps_limit` (the cvar is cheat protected and can be set only by the server)
+- Change: dialog "Run in safe mode?" is removed
+- Change: dialog "Set Optimal Settings?" and "Recommended Settings Update" is removed
+- Change: new text in the console to indicate that CoD2x is loaded
 - Change: changed auto-update server with ability to download the latest version of CoD2x
 
 
 
 # Plans
-- Configurable windowed mode / borderless windowed mode - it might fix the black screen issues with alt-tabbing
 - Set sv_cheats 1 when playing demo
 - Run the game without additional IWD files referenced to fix "iwd sum/name mismatch" error
 - Fix clipping bug by adjusting the player's animation transition time from crouch to stand (would require server-side fix, including linux binaries)
-- translations for mod developers
+- Translations for mod developers
 - URL protocol to connect to the server from website (cod2://ip:port)
 - Make it possible to show more than 4 servers in server browser on LAN
 - Detect if incorrect version of CoD2 is installed
-- Implementation of 'rinput' features
-- Disable 'Set optional settings' dialog when starting the game
 - Fix MG sensitivity
 - Fix numberic 8 and 2 when typing into console
 - Implement 1.4 version with server side patches
@@ -46,7 +50,7 @@ This "patch" or "extended version" is build on top of 1.3 version.
 
 # How to install
 1. You need original Call of Duty 2 with version [1.3](https://www.moddb.com/games/call-of-duty-2/downloads/call-of-duty-2-pc-patch-v-13) installed.
-2. Download latest version of CoD2x - [CoD2x_v1_test4_windows.zip](https://github.com/eyza-cod2/CoD2x/releases/download/v1_test4/CoD2x_v1_test4_windows.zip)
+2. Download latest version of CoD2x - [CoD2x_v1_test5_windows.zip](https://github.com/eyza-cod2/CoD2x/releases/download/v1_test5/CoD2x_v1_test5_windows.zip)
 3. Extract the content of the archive to the Call of Duty 2 folder, replacing any existing file:
     - 📄 CoD2x Installation and uninstallation manual.txt
     - 📄 mss32.dll

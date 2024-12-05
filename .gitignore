@@ -5,4 +5,12 @@ bin/windows/servercache.dat
 bin/windows/hunkusage.dat
 bin/windows/main/*.iwd
 bin/windows/main/*.log
+bin/windows/*.lnk
+
+# Ignore all folders except for main, miles and pb
+bin/windows/*/
+!bin/windows/main/players
+!bin/windows/miles/
+!bin/windows/pb/
+
 

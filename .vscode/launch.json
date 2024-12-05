@@ -6,7 +6,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/bin/windows/CoD2MP_s.exe",
-            "args": ["+set developer 2", "+set showpackets 1"],
+            "args": ["+set developer 2"/*, "+set showpackets 1"*/],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/bin/windows",
             "environment": [],
