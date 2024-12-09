@@ -32,21 +32,30 @@
                 }
             }
         },
+
         {
             "label": "Build CoD2x Linux",
             "type": "shell",
-            "command": "mingw32-make.exe",
-            "args": ["build_cod2x_linux"],
+            "command": "wsl",
+            "args": ["make", "build_cod2x_linux"],
             "group": {
                 "kind": "build"
             },
-            "problemMatcher": ["$gcc"],
-            "options": {
-                "env": {
-                    "PATH": "${workspaceFolder}/tools/mingw/bin;${env:PATH}"
-                }
-            }
         },
+        {
+            "label": "WSL Linux",
+            "type": "shell",
+            "command": "${workspaceFolder}/tools/wsl/WSL_run.bat",
+            "args": [
+              "${workspaceFolder}",
+              "+set developer 2"
+            ],
+            "problemMatcher": [],
+            "dependsOn": [
+                "Build CoD2x Linux"
+            ],
+        },
+
         {
             "label": "Zip",
             "type": "shell",

@@ -88,8 +88,24 @@ This "patch" or "extended version" is build on top of 1.3 version.
 1. Clone this repository.
 2. Copy .iwd files from original Call of Duty 2 1.3 main folder to `./bin/windows/main` folder in this repository (iw_01..iw_15 and localized_english_iw00..localized_english_iw11)
 3. Instal MinGW-w64 by Brecht Sanders [winlibs-i686-posix-dwarf-gcc-14.2.0-mingw-w64msvcrt-12.0.0-r2](https://github.com/brechtsanders/winlibs_mingw/releases/download/14.2.0posix-19.1.1-12.0.0-msvcrt-r2/winlibs-i686-posix-dwarf-gcc-14.2.0-mingw-w64msvcrt-12.0.0-r2.zip) into `./tools/mingw`
-4. Run VSCode as administrator (:warning: needed to be able to run CoD2 also as administrator while debugging)
-5. Use VSCode to compile, run and debug
+
+4. Install WSL (Windows Subsystem for Linux) with Ubuntu 24.04 LTS
+    `wsl --install` (should install 'Ubuntu' instance name)
+    `sudo apt update`
+    `sudo dpkg --add-architecture i386`
+    `sudo apt update`
+    `sudo apt install -y make gcc gdb gdbserver:i386 build-essential`
+    `sudo apt install -y libc6:i386 libstdc++5:i386 libgcc1:i386` (runtime libraries to run original CoD2) 
+    `sudo apt install -y gcc-multilib libc6-dev:i386` (development libraries to compile new code)
+    `exit`
+    `wsl --set-default Ubuntu`
+    |
+    Setup tmux: (enable mouse scrolling)
+    `nano ~/.tmux.conf`
+    `set -g mouse on`
+    `tmux source-file ~/.tmux.conf`
+5. Run VSCode as administrator (:warning: needed to be able to run CoD2 also as administrator while debugging)
+6. Use VSCode to compile, run and debug
 
 
 # How it works

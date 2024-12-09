@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch & Debug CoD2 Win",
+            "name": "Debug CoD2x Win",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/bin/windows/CoD2MP_s.exe",
@@ -22,6 +22,39 @@
             ],
             "preLaunchTask": "Build MSS32",
             "internalConsoleOptions": "neverOpen"
+        },
+        {
+            "name": "Debug CoD2x Linux",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "/tmp/CoD2x/cod2_lnxded",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "cwd": "/tmp/CoD2x/",
+            "setupCommands": [
+                {
+                    "description": "Connect to gdbserver",
+                    "text": "target remote localhost:1234",
+                    "ignoreFailures": false
+                },
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "pipeTransport": {
+                "pipeProgram": "wsl.exe",
+                "pipeArgs": ["bash", "-c"],
+                "debuggerPath": "/usr/bin/gdb"
+            },
+            "sourceFileMap": {
+                "/mnt/c/": "C:\\",
+                "/mnt/d/": "D:\\",
+                "/mnt/t/": "T:\\",
+                "/mnt/e/": "E:\\"
+            },
+            "targetArchitecture": "x86",
+            "preLaunchTask": "WSL Linux"
         }
     ]
 }
