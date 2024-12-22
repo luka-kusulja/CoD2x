@@ -1,5 +1,4 @@
 #include "hook.h"
-#include "patch.h"
 #include "shared.h"
 #include "mss32_original.h"
 #include "exception.h"
@@ -8,6 +7,8 @@
 #include "admin.h"
 #include "window.h"
 #include "fps.h"
+//#include "connect.h"
+#include "../shared/server.h"
 #include "shared.h"
 
 #include <windows.h>
@@ -150,27 +151,27 @@ bool hook_patchExecutable() {
 
 
     // Change text in console -> CoD2 MP: 1.3>
-    patch_string_ptr(0x004064c6 + 1, "CoD2x [" APP_VERSION "] MP");
-    patch_string_ptr(0x004064c1 + 1, "1.3");
+    patch_string_ptr(0x004064c6 + 1, "CoD2x [" APP_MSS32_VERSION "] MP");
+    patch_string_ptr(0x004064c1 + 1, PATCH_VERSION);
     patch_string_ptr(0x004064cb + 1, "%s: %s> ");
 
 
     // Print into console -> "CoD2 MP 1.3 build win-x86 May  1 2006"
     patch_string_ptr(0x00434467 + 1, __DATE__);
     patch_string_ptr(0x0043446c + 1, "win-x86");
-    patch_string_ptr(0x00434471 + 1, "1.3." APP_NAME "_" APP_VERSION);
+    patch_string_ptr(0x00434471 + 1, PATCH_VERSION "." APP_NAME "_" APP_MSS32_VERSION);
     patch_string_ptr(0x00434476 + 1, "CoD2x MP");
 
     // Cvar "version" value
     patch_string_ptr(0x004346de + 1, __DATE__ " " __TIME__);
-    patch_string_ptr(0x004346e3 + 1, "pc_1.3_1_1");
+    patch_string_ptr(0x004346e3 + 1, "by eyza");
     patch_string_ptr(0x004346f7 + 1, "win-x86");
-    patch_string_ptr(0x00434701 + 1, "1.3." APP_NAME "_" APP_VERSION);
+    patch_string_ptr(0x00434701 + 1, PATCH_VERSION "." APP_NAME "_" APP_MSS32_VERSION);
     patch_string_ptr(0x00434706 + 1, "CoD2x MP");
 
     // Cvar "shortversion" value
     // Also visible in menu right bottom corner
-    patch_string_ptr(0x0043477c + 1, "1.3." APP_NAME "_" APP_VERSION);
+    patch_string_ptr(0x0043477c + 1, PATCH_VERSION "." APP_NAME "_" APP_MSS32_VERSION);
 
 
 
@@ -179,11 +180,11 @@ bool hook_patchExecutable() {
 
     // Version info sent to master server via "getUpdateInfo2" UDB packet
     //patch_string_ptr(0x004b4f60 + 1, "CoD2x MP");
-    //patch_string_ptr(0x004b4f5b + 1, "1.3." APP_NAME "_" APP_VERSION);
+    //patch_string_ptr(0x004b4f5b + 1, "1.3." APP_NAME "_" APP_MSS32_VERSION);
     //patch_string_ptr(0x004b4f56 + 1, "win-x86");
 
     // Old version that is being set into cl_updateOldVersion when update response is received
-    //patch_string_ptr(0x00411a6e + 1, "1.3." APP_NAME "_" APP_VERSION);
+    //patch_string_ptr(0x00411a6e + 1, "1.3." APP_NAME "_" APP_MSS32_VERSION);
 
     //patch_string_ptr(0x0041130a + 1, "cod2x.me"); // originaly cod2update.activision.com
     //patch_push_string(0x00411320, ""); // originaly cod2update2.activision.com
@@ -202,6 +203,12 @@ bool hook_patchExecutable() {
     
 
 
+
+    // Client: protocol ver for server
+    patch_byte(0x0040e19a + 1, PROTOCOL_VERSION);
+
+
+    server_hook();
 
 
 
@@ -226,7 +233,7 @@ bool hook_patch() {
 
     // Show warning message
     MessageBoxA(NULL, 
-        "You successfully installed CoD2x " APP_VERSION ".\n\n"
+        "You successfully installed CoD2x " APP_MSS32_VERSION ".\n\n"
         "Note that this is a test version, we recommend you to uninstall it after trying it!", "CoD2x warning", MB_OK | MB_ICONINFORMATION);
 
     // Check if the user is an admin
@@ -287,10 +294,7 @@ bool hook_patchEntryPoint() {
         return FALSE; 
     }
 
-    // Get the original entry point from the PE header
-    IMAGE_DOS_HEADER* dosHeader = (IMAGE_DOS_HEADER*)hModule;
-    IMAGE_NT_HEADERS* ntHeaders = (IMAGE_NT_HEADERS*)((BYTE*)hModule + dosHeader->e_lfanew);
-    originalEntryPoint = (void*)((BYTE*)hModule + ntHeaders->OptionalHeader.AddressOfEntryPoint);
+    originalEntryPoint = (void*)0x0057db54; // Entry point of CoD2MP_s.exe
 
     // Save the original bytes at the entry point
     memcpy(originalBytes, originalEntryPoint, sizeof(originalBytes));

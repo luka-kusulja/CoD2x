@@ -4,7 +4,6 @@
 #include <windows.h>
 #include <stdio.h>
 #include <cstdint>
-#include "patch.h"
 
 
 #define vid_xpos                    (*((dvar_t**)0x00d77158))

@@ -1,5 +1,4 @@
 #include "shared.h"
-#include "cod2.h"
 
 #include <windows.h>
 
@@ -31,7 +30,7 @@ void showErrorBox(const char *file, const char *function, int line, const char *
     va_end(args);
 
     const char *errorTemplate = 
-        "An error occurred in " APP_NAME " module '" APP_MODULE_NAME "' " APP_VERSION ":\n\n"
+        "An error occurred in " APP_NAME " module '" APP_MODULE_NAME "' " APP_MSS32_VERSION ":\n\n"
         "%s\n\n"
         "File: %s\n"
         "Function: %s\n"

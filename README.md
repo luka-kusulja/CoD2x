@@ -90,20 +90,24 @@ This "patch" or "extended version" is build on top of 1.3 version.
 3. Instal MinGW-w64 by Brecht Sanders [winlibs-i686-posix-dwarf-gcc-14.2.0-mingw-w64msvcrt-12.0.0-r2](https://github.com/brechtsanders/winlibs_mingw/releases/download/14.2.0posix-19.1.1-12.0.0-msvcrt-r2/winlibs-i686-posix-dwarf-gcc-14.2.0-mingw-w64msvcrt-12.0.0-r2.zip) into `./tools/mingw`
 
 4. Install WSL (Windows Subsystem for Linux) with Ubuntu 24.04 LTS
-    `wsl --install` (should install 'Ubuntu' instance name)
-    `sudo apt update`
-    `sudo dpkg --add-architecture i386`
-    `sudo apt update`
-    `sudo apt install -y make gcc gdb gdbserver:i386 build-essential`
-    `sudo apt install -y libc6:i386 libstdc++5:i386 libgcc1:i386` (runtime libraries to run original CoD2) 
-    `sudo apt install -y gcc-multilib libc6-dev:i386` (development libraries to compile new code)
-    `exit`
-    `wsl --set-default Ubuntu`
-    |
-    Setup tmux: (enable mouse scrolling)
-    `nano ~/.tmux.conf`
-    `set -g mouse on`
-    `tmux source-file ~/.tmux.conf`
+    - `wsl --install` (should install 'Ubuntu' instance name)
+    - `sudo apt update`
+    - `sudo dpkg --add-architecture i386`
+    - `sudo apt update`
+    - `sudo apt install -y make gcc gdb gdbserver:i386 build-essential`
+    - `sudo apt install -y libc6:i386 libstdc++5:i386 libgcc1:i386` (runtime libraries to run original CoD2) 
+    - `sudo apt install -y gcc-multilib libc6-dev:i386` (development libraries to compile new code)
+    - `sudo apt-get install gcc-multilib g++-multilib` (some dependencies for compiling)
+    - `exit`
+    - `wsl --set-default Ubuntu`
+    - |
+    - Setup tmux: (enable mouse scrolling)
+    - `nano ~/.tmux.conf`
+    - `set -g mouse on`
+    - `tmux source-file ~/.tmux.conf`
+    - |
+    - How to get IP of WSL virtual machine to connect from Windows to Linux CoD2x server: 
+    - `ip addr show eth0 | grep inet | awk '{ print $2; }' | sed 's/\/.*$//'`
 5. Run VSCode as administrator (:warning: needed to be able to run CoD2 also as administrator while debugging)
 6. Use VSCode to compile, run and debug
 

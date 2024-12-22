@@ -16,6 +16,8 @@ WIN_MSS32_SRC_DIR = src/mss32
 WIN_MSS32_OBJ_DIR = obj/mss32
 LINUX_OBJ_DIR = obj/linux
 LINUX_SRC_DIR = src/linux
+SHARED_SRC_DIR = src/shared
+SHARED_OBJ_DIR = obj/shared
 
 # Define source files and target paths
 ZIP_EXEC = 7za.exe
@@ -28,11 +30,18 @@ ZIP_WIN_OUTPUT = $(ZIP_WIN_DIR)/$(ZIP_WIN_NAME)
 MSS32_C_SOURCES = $(wildcard $(WIN_MSS32_SRC_DIR)/*.cpp)
 MSS32_ASM_SOURCES = $(wildcard $(WIN_MSS32_SRC_DIR)/*.asm)
 LINUX_C_SOURCES = $(wildcard $(LINUX_SRC_DIR)/*.cpp)
+SHARED_C_SOURCES = $(wildcard $(SHARED_SRC_DIR)/*.cpp)
+
+# Shared object files for Windows and Linux
+SHARED_WIN_OBJECTS = $(patsubst $(SHARED_SRC_DIR)/%.cpp, $(WIN_MSS32_OBJ_DIR)/shared_%.o, $(SHARED_C_SOURCES))
+SHARED_LINUX_OBJECTS = $(patsubst $(SHARED_SRC_DIR)/%.cpp, $(LINUX_OBJ_DIR)/shared_%.o, $(SHARED_C_SOURCES))
 
 # Platform-specific object files
 WIN_MSS32_OBJECTS = $(patsubst $(WIN_MSS32_SRC_DIR)/%.cpp, $(WIN_MSS32_OBJ_DIR)/%.o, $(MSS32_C_SOURCES)) \
-                    $(patsubst $(WIN_MSS32_SRC_DIR)/%.asm, $(WIN_MSS32_OBJ_DIR)/%.o, $(MSS32_ASM_SOURCES))
-LINUX_OBJECTS = $(patsubst $(LINUX_SRC_DIR)/%.cpp, $(LINUX_OBJ_DIR)/%.o, $(LINUX_C_SOURCES))
+                    $(patsubst $(WIN_MSS32_SRC_DIR)/%.asm, $(WIN_MSS32_OBJ_DIR)/%.o, $(MSS32_ASM_SOURCES)) \
+					$(SHARED_WIN_OBJECTS)
+LINUX_OBJECTS = $(patsubst $(LINUX_SRC_DIR)/%.cpp, $(LINUX_OBJ_DIR)/%.o, $(LINUX_C_SOURCES)) \
+				$(SHARED_LINUX_OBJECTS)
 
 # ==========================
 # Compilation Settings
@@ -103,6 +112,18 @@ $(LINUX_TARGET): $(LINUX_OBJECTS)
 
 $(LINUX_OBJ_DIR)/%.o: $(LINUX_SRC_DIR)/%.cpp | $(LINUX_OBJ_DIR)
 	@echo "Compiling $< for CoD2x (Linux)..."
+	$(LINUX_CC) $(LINUX_CFLAGS) -MMD -MP -c -o $@ $<
+
+
+
+# Compile shared functionality objects for Windows
+$(WIN_MSS32_OBJ_DIR)/shared_%.o: $(SHARED_SRC_DIR)/%.cpp | $(WIN_MSS32_OBJ_DIR)
+	@echo "Compiling $< for shared functionality (Windows)..."
+	$(WIN_CC) $(WIN_CFLAGS) -MMD -MP -c -o $@ $<
+
+# Compile shared functionality objects for Linux
+$(LINUX_OBJ_DIR)/shared_%.o: $(SHARED_SRC_DIR)/%.cpp | $(LINUX_OBJ_DIR)
+	@echo "Compiling $< for shared functionality (Linux)..."
 	$(LINUX_CC) $(LINUX_CFLAGS) -MMD -MP -c -o $@ $<
 
 

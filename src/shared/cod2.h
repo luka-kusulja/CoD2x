@@ -1,8 +1,8 @@
 #ifndef COD2_H
 #define COD2_H
 
+#include "shared.h"
 #include "cod2_dvars.h"
-#include <windows.h>
 #include <stdio.h>
 
 
@@ -27,6 +27,33 @@ The compiler uses this information to avoid using those resources for other purp
 If the assembly code modifies global memory (e.g., via pointers), add "memory" to the clobber list to tell the compiler that memory content has changed:
 
 */
+
+
+/*
+    Helper macros for inline assembly
+*/
+
+#define ASM(op, ...) ASM__##op(__VA_ARGS__)
+
+#define ASM__push(arg) \
+    __asm__ volatile("push %0\n" : : "m"(arg) : "memory")
+
+#define ASM__mov(dest, src) \
+    __asm__ volatile("movl %0, %%" dest "\n" : : "m"(src) : "memory", dest)
+
+#define ASM__call(func) \
+    __asm__ volatile("call *%0\n" : : "m"(func) : "memory")
+
+#define ASM__add(dest, imm) \
+    __asm__ volatile("addl %0, %%" dest "\n" : : "i"(imm) : "memory", dest)
+
+#define ASM__add_esp(bytes) \
+    __asm__ volatile("addl %0, %%esp\n" : : "i"(bytes) : "memory")
+
+#define ASM__movr(dest, src) \
+    __asm__ volatile("movl %%" src ", %0\n" : "=m"(dest) : : "memory", src)
+
+
 
 
 
@@ -58,11 +85,10 @@ enum netadrtype_e
 struct netaddr_s
 {
     enum netadrtype_e type;
-    byte ip[0x4];
-    UINT16 port;
+    uint8_t ip[0x4];
+    uint16_t port;
     int ipx_data;
     int ipx_data2;
-    int ipx_data3;
 };
 
 
@@ -92,7 +118,7 @@ inline void Com_Error(enum errorParm_e type, const char* format, ...) {
     char buffer[4096];
     vsnprintf(buffer, sizeof(buffer), format, va);
     va_end(va);
-    ((void(__cdecl*)(int, const char*))(0x004324c0))(type, buffer);
+    ((void(__cdecl*)(int, const char*))(ADDR(0x004324c0, 0x08061124)))(type, buffer);
 }
 
 /**
@@ -106,7 +132,7 @@ inline int Com_Printf(const char* format, ...) {
     char buffer[4096];
     vsnprintf(buffer, sizeof(buffer), format, va);
     va_end(va);
-    return ((int(__cdecl*)(const char*))(0x00431ee0))(buffer);
+    return ((int(__cdecl*)(const char*))(ADDR(0x00431ee0, 0x08060dea)))(buffer);
 }
 
 /**
@@ -120,7 +146,7 @@ inline int Com_DPrintf(const char* format, ...) {
     char buffer[4096];
     vsnprintf(buffer, sizeof(buffer), format, va);
     va_end(va);
-    return ((int(__cdecl*)(const char*))(0x00431f30))(buffer);
+    return ((int(__cdecl*)(const char*))(ADDR(0x00431f30, 0x08060e3a)))(buffer);
 }
 
 
@@ -133,15 +159,14 @@ inline int Com_DPrintf(const char* format, ...) {
  * https://github.com/id-Software/Enemy-Territory/blob/40342a9e3690cb5b627a433d4d5cbf30e3c57698/src/qcommon/cmd.c#L94
  */
 inline void Cbuf_AddText(const char* text) {
-    const void* original_func = (void*)0x00420ad0;
-
-    __asm__ volatile (
-        "movl %0, %%eax\n\t"
-        "call *%1\n\t"
-        :
-        : "r"(text), "r"(original_func) 
-        : "eax"
-    );
+    #if COD2X_WIN32
+        const void* original_func = (void*)0x00420ad0;
+        ASM( mov,   "eax", text     );
+        ASM( call,  original_func   );
+    #endif
+    #if COD2X_LINUX
+        ((void(__cdecl*)(const char*))(0x0805fd0a))(text);
+    #endif
 }
 
 
@@ -149,13 +174,13 @@ inline void Cbuf_AddText(const char* text) {
 
 
 
-#define va ((char* (*)(const char *, ...))0x0044a990)
+#define va ((char* (*)(const char *, ...))ADDR(0x0044a990, 0x080b7fa6))
 
 
 
 
-#define cmd_argc (*(int*)0x00b1a480)
-#define cmd_argv ((char**)0x00b17a80)
+#define cmd_argc (*(int*)ADDR(0x00b1a480, 0x0819f100))
+#define cmd_argv ((char**)ADDR(0x00b17a80, 0x0819f180))
 
 // Get command argument count
 inline int Cmd_Argc( void )
@@ -181,46 +206,106 @@ inline const char *Cmd_Argv( int arg )
 
 // Send UDP packet to a server
 inline int NET_OutOfBandPrint(const char* msg, int mode, struct netaddr_s addr) {
-    const void* original_func = (void*)0x00448910;
-
-    int result;
-    __asm__ volatile (
-        "push %7\n"              // Push 6th argument (unk2)
-        "push %6\n"              // Push 5th argument (unk1)
-        "push %5\n"              // Push 4th argument (port)
-        "push %4\n"              // Push 3rd argument (ip)
-        "push %3\n"              // Push 2nd argument (type)
-        "push %2\n"              // Push 1st argument (mode)
-        "movl %1, %%eax\n"        // Load msg (1st argument) into EAX
-        "call *%8\n"             // Call the function
-        "addl $24, %%esp\n"    // Clean up the stack (6 arguments × 4 bytes each)
-        : "=a"(result)           // Store the return value in the 'result' variable (EAX)
-        : "m"(msg), "m"(mode), "m"(addr.type), "m"(addr.ip), "m"(addr.port), "m"(addr.ipx_data), "m"(addr.ipx_data2), "m"(original_func)
-        : "memory"
-    );
-
-    return result;
-}
-
-// Convert a string to a network address
-inline int NET_StringToAdr(const char *updateServerUri, struct netaddr_s* a) {
-    const void* original_func = (void*)0x00448d50;
-
-    int result;
-    __asm__ volatile (
-        "movl %1, %%eax\n"  // Load updateServerUri into EAX
-        "movl %2, %%ebx\n"  // Load pointer to addr into EBX
-        "call *%3\n"        // Call the function
-        : "=a"(result)     // Store the return value in the 'result' variable
-        : "m"(updateServerUri), "m"(a), "m"(original_func)
-        : "ebx", "memory"
-    );
-
-    return result;
+    #if COD2X_WIN32
+        const void* original_func = (void*)0x00448910;
+        int result;
+        ASM ( push,  addr.ipx_data2 );
+        ASM ( push,  addr.ipx_data  );
+        ASM ( push,  addr.port      );
+        ASM ( push,  addr.ip        );
+        ASM ( push,  addr.type      );
+        ASM ( push,  mode           );
+        ASM ( mov,   "eax", msg     );
+        ASM ( call,  original_func  );
+        ASM ( add_esp, 24           ); // Clean up the stack (6 arguments × 4 bytes = 24)
+        ASM ( movr,  result, "eax"  ); // Store the return value in the 'result' variable
+        return result;
+    #endif
+    #if COD2X_LINUX
+        return ((int (*)(int, int, int, int, int, int, const char*))0x0806c8cc)(addr.type, addr.ip[0], addr.port, addr.ipx_data, addr.ipx_data2, mode, msg);
+    #endif
 }
 
 
+// Send UDP packet to a server
+inline int NET_OutOfBandData(const char* msg, int len, int mode, struct netaddr_s addr) {
+    #if COD2X_WIN32
+        const void* original_func = (void*)0x00448a70;
+        int result;
+        ASM ( push,  addr.ipx_data2 );
+        ASM ( push,  addr.ipx_data  );
+        ASM ( push,  addr.port      );
+        ASM ( push,  addr.ip        );
+        ASM ( push,  addr.type      );
+        ASM ( push,  mode           );
+        ASM ( mov,   "ecx", len     );
+        ASM ( mov,   "eax", msg     );
+        ASM ( call,  original_func  );
+        ASM ( add_esp, 28           ); // Clean up the stack (7 arguments × 4 bytes = 28)
+        ASM ( movr,  result, "eax"  ); // Store the return value in the 'result' variable
+        return result;
+    #endif
+    #if COD2X_LINUX
+        // not used
+        exit(EXIT_FAILURE);
+    #endif
+}
 
+
+
+#if COD2X_WIN32
+    // Convert a string to a network address
+    inline int NET_StringToAdr(const char *updateServerUri, struct netaddr_s* a) {
+        const void* original_func = (void*)0x00448d50;
+        int result;
+        ASM( mov,   "eax", updateServerUri  );
+        ASM( mov,   "ebx", a                );
+        ASM( call,  original_func           );
+        ASM( movr,  result, "eax"           ); // Store the return value in the 'result' variable
+        return result;
+    }
+
+
+    inline int Sys_IsLANAddress(struct netaddr_s addr) {
+        return ((int (*)(int, int, unsigned int, int, int))0x00467100)(addr.type, (int)addr.ip, addr.port, addr.ipx_data, addr.ipx_data2);
+    }
+
+#endif
+
+
+
+
+
+inline void Info_SetValueForKey(const char* buffer, const char* keyName, const char* value) {  
+    #if COD2X_WIN32
+        const void* original_func = (void*)0x0044ae10; // (char* buffer, char* keyName @ eax, int32_t value)
+        ASM( push,     value          ); // 3th argument
+        ASM( push,     buffer         ); // 2rd argument
+        ASM( mov,      "eax", keyName ); // 1nd argument
+        ASM( call,     original_func  );
+        ASM( add_esp,  8              ); // Clean up the stack (2 arguments × 4 bytes = 8)
+    #endif
+    #if COD2X_LINUX
+        ((char* (*)(const char* buffer, const char* keyName, const char* value))0x080b85ce)(buffer, keyName, value);
+    #endif
+}
+
+
+inline char* Info_ValueForKey(const char* buffer, const char* keyName) {   
+    #if COD2X_WIN32
+        const void* original_func = (void*)(0x0044aa90); // char* Info_ValueForKey(char* buffer @ ecx, char* key)
+        char* result;
+        ASM( push,     keyName          ); // 2nd argument                    
+        ASM( mov,      "ecx", buffer    ); // 1st argument
+        ASM( call,     original_func    ); 
+        ASM( add_esp,  4                ); // Clean up the stack (1 argument × 4 bytes = 4)     
+        ASM( movr,     result, "eax"    ); // Store the return value in the 'result' variable
+        return result;
+    #endif
+    #if COD2X_LINUX
+        return ((char* (*)(const char* buffer, const char* keyName))0x080b8108)(buffer, keyName);
+    #endif
+}
 
 
 

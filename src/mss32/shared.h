@@ -2,18 +2,13 @@
 #ifndef SHARED_H
 #define SHARED_H
 
-#include "cod2.h"
+#include "../shared/shared.h"
 #include "hook.h"
 
 #include <windows.h>
 #include <stdio.h>  // For snprintf
 
-// Application-wide constants
 #define APP_MODULE_NAME "mss32.dll"
-#define APP_NAME "CoD2x"
-#define APP_VERSION "v1_test5"  // COD2X_RENAME
-#define APP_VERSION_FULL APP_NAME "_" APP_VERSION    // CoD2x_v•_test•
-
 
 void getErrorMessage(DWORD errorCode, char* buffer, size_t bufferSize);
 void showErrorBox(const char *file, const char *function, int line, const char *format, ...);

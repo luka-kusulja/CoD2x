@@ -1,13 +1,17 @@
 #include "shared.h"
-#include "cod2.h"
 
 #include <windows.h>
 #include <wininet.h>
 
+#define cl_updateAvailable (*(dvar_t **)(0x0096b644))
+#define cl_updateVersion (*(dvar_t **)(0x0096b640))
+#define cl_updateOldVersion (*(dvar_t **)(0x0096b64c))
+#define cl_updateFiles (*(dvar_t **)(0x0096b5d4))
+
 
 bool updater_downloadDLL(const char *url, const char *downloadPath) {
     // Initialize WinINet
-    HINTERNET hInternet = InternetOpenA("CoD2x " APP_VERSION " Update Downloader", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
+    HINTERNET hInternet = InternetOpenA("CoD2x " APP_MSS32_VERSION " Update Downloader", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
     if (!hInternet) {
         showCoD2ErrorWithLastError(ERR_DROP, "Failed to initialize WinINet.");
         return 0;
@@ -126,7 +130,7 @@ bool updater_sendRequest() {
     Com_DPrintf("%i.%i.%i.%i:%i\n", updater_address.ip[0], updater_address.ip[1], updater_address.ip[2], updater_address.ip[3], autoUpatePort);
 
     // Send the request to the Auto-Update server
-    char* udpPayload = va("getUpdateInfo2 \"%s\" \"%s\" \"%s\"\n", "CoD2x MP", "1.3." APP_VERSION_FULL, "win-x86");
+    char* udpPayload = va("getUpdateInfo2 \"%s\" \"%s\" \"%s\"\n", "CoD2x MP", PATCH_VERSION "." APP_MSS32_VERSION, "win-x86");
 
     autoUpdateServer_IsDone = NET_OutOfBandPrint(udpPayload, 0, updater_address);
     
@@ -170,7 +174,7 @@ void updater_updatePacketResponse(struct netaddr_s addr)
     Dvar_SetString(cl_updateVersion, newVersionString);
 
 
-    Dvar_SetString(cl_updateOldVersion, "1.3." APP_VERSION_FULL);
+    Dvar_SetString(cl_updateOldVersion, PATCH_VERSION "." APP_MSS32_VERSION);
 
     return;
 }
