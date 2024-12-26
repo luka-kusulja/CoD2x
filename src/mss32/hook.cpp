@@ -151,7 +151,7 @@ bool hook_patchExecutable() {
 
 
     // Change text in console -> CoD2 MP: 1.3>
-    patch_string_ptr(0x004064c6 + 1, "CoD2x [" APP_MSS32_VERSION "] MP");
+    patch_string_ptr(0x004064c6 + 1, "CoD2x [" APP_VERSION "] MP");
     patch_string_ptr(0x004064c1 + 1, PATCH_VERSION);
     patch_string_ptr(0x004064cb + 1, "%s: %s> ");
 
@@ -233,7 +233,7 @@ bool hook_patch() {
 
     // Show warning message
     MessageBoxA(NULL, 
-        "You successfully installed CoD2x " APP_MSS32_VERSION ".\n\n"
+        "You successfully installed CoD2x " APP_VERSION ".\n\n"
         "Note that this is a test version, we recommend you to uninstall it after trying it!", "CoD2x warning", MB_OK | MB_ICONINFORMATION);
 
     // Check if the user is an admin
