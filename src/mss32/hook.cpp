@@ -7,9 +7,8 @@
 #include "admin.h"
 #include "window.h"
 #include "fps.h"
-//#include "connect.h"
+#include "../shared/common.h"
 #include "../shared/server.h"
-#include "shared.h"
 
 #include <windows.h>
 #include <stdio.h>
@@ -156,22 +155,7 @@ bool hook_patchExecutable() {
     patch_string_ptr(0x004064cb + 1, "%s: %s> ");
 
 
-    // Print into console -> "CoD2 MP 1.3 build win-x86 May  1 2006"
-    patch_string_ptr(0x00434467 + 1, __DATE__);
-    patch_string_ptr(0x0043446c + 1, "win-x86");
-    patch_string_ptr(0x00434471 + 1, PATCH_VERSION "." APP_NAME "_" APP_MSS32_VERSION);
-    patch_string_ptr(0x00434476 + 1, "CoD2x MP");
 
-    // Cvar "version" value
-    patch_string_ptr(0x004346de + 1, __DATE__ " " __TIME__);
-    patch_string_ptr(0x004346e3 + 1, "by eyza");
-    patch_string_ptr(0x004346f7 + 1, "win-x86");
-    patch_string_ptr(0x00434701 + 1, PATCH_VERSION "." APP_NAME "_" APP_MSS32_VERSION);
-    patch_string_ptr(0x00434706 + 1, "CoD2x MP");
-
-    // Cvar "shortversion" value
-    // Also visible in menu right bottom corner
-    patch_string_ptr(0x0043477c + 1, PATCH_VERSION "." APP_NAME "_" APP_MSS32_VERSION);
 
 
 
@@ -203,9 +187,7 @@ bool hook_patchExecutable() {
     
 
 
-
-    // Client: protocol ver for server
-    patch_byte(0x0040e19a + 1, PROTOCOL_VERSION);
+    common_hook();
 
 
     server_hook();
