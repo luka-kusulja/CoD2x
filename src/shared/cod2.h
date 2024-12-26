@@ -222,7 +222,7 @@ inline int NET_OutOfBandPrint(const char* msg, int mode, struct netaddr_s addr) 
         return result;
     #endif
     #if COD2X_LINUX
-        return ((int (*)(int, int, int, int, int, int, const char*))0x0806c8cc)(addr.type, addr.ip[0], addr.port, addr.ipx_data, addr.ipx_data2, mode, msg);
+        return ((int (*)(int, int, int, int, int, int, const char*))0x0806c8cc)(mode, addr.type, *(int*)&addr.ip, addr.port, addr.ipx_data, addr.ipx_data2, msg);
     #endif
 }
 
