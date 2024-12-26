@@ -22,9 +22,14 @@ SHARED_OBJ_DIR = obj/shared
 # Define source files and target paths
 ZIP_EXEC = 7za.exe
 ZIP_WIN_DIR = zip/windows
-ZIP_WIN_FILES = $(WIN_MSS32_TARGET) bin/windows/mss32_original.dll $(COD2X_WIN_TARGET)
+ZIP_WIN_FILES = $(WIN_MSS32_TARGET) bin/windows/mss32_original.dll
 ZIP_WIN_NAME = CoD2x_$(VERSION)_windows.zip
 ZIP_WIN_OUTPUT = $(ZIP_WIN_DIR)/$(ZIP_WIN_NAME)
+
+ZIP_LINUX_DIR = zip/linux
+ZIP_LINUX_FILES = $(LINUX_TARGET) bin/linux/cod2_lnxded
+ZIP_LINUX_NAME = CoD2x_$(VERSION)_linux.zip
+ZIP_LINUX_OUTPUT = $(ZIP_LINUX_DIR)/$(ZIP_LINUX_NAME)
 
 # Source files
 MSS32_C_SOURCES = $(wildcard $(WIN_MSS32_SRC_DIR)/*.cpp)
@@ -142,6 +147,11 @@ $(LINUX_OBJ_DIR) $(LINUX_BIN_DIR):
 	@mkdir -p $@
 
 
+
+# ==========================
+# Zip output files for Windows
+# ==========================
+
 # Rule to create the zip file
 $(ZIP_WIN_OUTPUT): $(ZIP_WIN_FILES) | $(ZIP_WIN_DIR)
 	@echo "Copying files to $(subst /,\, $(ZIP_WIN_DIR))..."
@@ -156,11 +166,6 @@ $(ZIP_WIN_DIR):
 	@echo "Creating directory $(ZIP_WIN_DIR)..."
 	@mkdir -p $(ZIP_WIN_DIR)
 
-
-
-# ==========================
-# Zip output files
-# ==========================
 zip_win: zip_win_clean $(ZIP_WIN_OUTPUT)
 
 zip_win_clean:
@@ -171,11 +176,48 @@ zip_win_clean:
 	    ) \
 	)
 
+
+
+# ==========================
+# Zip output files for Linux
+# ==========================
+
+# Rule to create the Linux zip file
+$(ZIP_LINUX_OUTPUT): $(ZIP_LINUX_FILES) | $(ZIP_LINUX_DIR)
+	@echo "Copying files to $(subst /,\, $(ZIP_LINUX_DIR))..."
+	@for %%f in ($(subst /,\, $(ZIP_LINUX_FILES))) do copy %%f $(subst /,\, $(ZIP_LINUX_DIR)) >nul
+	@echo "Creating zip archive $(subst /,\, $(ZIP_LINUX_OUTPUT)) using 7-Zip..."
+	@echo $(ZIP_EXEC) a -tzip "$(subst /,\, $(ZIP_LINUX_OUTPUT))" "$(subst /,\, $(ZIP_LINUX_DIR))\*"
+	@cd $(subst /,\, $(ZIP_LINUX_DIR)) && $(ZIP_EXEC) a -tzip "$(ZIP_LINUX_NAME)" *
+	@echo "Zip archive created at $(subst /,\, $(ZIP_LINUX_OUTPUT))."
+
+# Rule to ensure the Linux zip directory exists
+$(ZIP_LINUX_DIR):
+	@echo "Creating directory $(ZIP_LINUX_DIR)..."
+	@mkdir -p $(ZIP_LINUX_DIR)
+
+zip_linux: zip_linux_clean $(ZIP_LINUX_OUTPUT)
+
+zip_linux_clean:
+	@echo "Cleaning up $(subst /,\, $(ZIP_LINUX_DIR)), preserving manual..."
+	@if exist $(subst /,\, $(ZIP_LINUX_DIR)) ( \
+	    for %%f in ($(subst /,\, $(ZIP_LINUX_DIR))\*) do ( \
+	        if /I not "%%~nxf"=="CoD2x Installation and uninstallation manual.txt" del /Q "%%f" \
+	    ) \
+	)
+
+
+
+zip_all: zip_win zip_linux
+
+
+
+
 # ==========================
 # Cleaning Up
 # ==========================
 
-clean: zip_win_clean
+clean: zip_win_clean zip_linux_clean
 	@echo "Cleaning up build files..."
 	@if exist $(subst /,\, $(WIN_MSS32_OBJ_DIR))\*.o del /Q $(subst /,\, $(WIN_MSS32_OBJ_DIR))\*.o
 	@if exist $(subst /,\, $(WIN_MSS32_OBJ_DIR))\*.d del /Q $(subst /,\, $(WIN_MSS32_OBJ_DIR))\*.d
