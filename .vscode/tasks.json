@@ -48,7 +48,7 @@
             "command": "${workspaceFolder}/tools/wsl/WSL_run.bat",
             "args": [
               "${workspaceFolder}",
-              "+set developer 2"
+              "+set developer 2 +set net_ip 0.0.0.0 +set sv_packet_info 1 +exec server +devmap mp_toujane"
             ],
             "problemMatcher": [],
             "dependsOn": [
