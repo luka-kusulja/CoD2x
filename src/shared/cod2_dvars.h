@@ -5,18 +5,18 @@
 enum dvarFlags_e : uint16_t
 {
     DVAR_NOFLAG = 0x0,
-    DVAR_ARCHIVE = 0x1,
-    DVAR_USERINFO = 0x2,
-    DVAR_SERVERINFO = 0x4,
-    DVAR_SYSTEMINFO = 0x8,
+    DVAR_ARCHIVE = 0x1,     // save to config_mp.cfg
+    DVAR_USERINFO = 0x2,    // cvars used in connection string
+    DVAR_SERVERINFO = 0x4,  // cvars used to describe the server settings to clients
+    DVAR_SYSTEMINFO = 0x8,  // cvars describing the server system resources, like iwds
     DVAR_NOWRITE = 0x10,
     DVAR_LATCH = 0x20,
     DVAR_ROM = 0x40,
     DVAR_CHEAT = 0x80,
-    DVAR_DEVELOPER = 0x100,
+    DVAR_CONFIG = 0x100, // same on client and server side, stored in configstrings
     DVAR_SAVED = 0x200,
-    DVAR_SCRIPTINFO = 0x400,
-    DVAR_CHANGEABLE_RESET = 0x1000,
+    DVAR_SCRIPTINFO = 0x400, // same as DVAR_SERVERINFO, but set from script
+    DVAR_CHANGEABLE_RESET = 0x1000, // allow changing min and max values when cvar is re-registered
     DVAR_RENDERER = 0x2000,
     DVAR_EXTERNAL = 0x4000,
     DVAR_AUTOEXEC = 0x8000
