@@ -12,6 +12,7 @@ This "patch" or "extended version" is build on top of 1.3 version.
 # Features
 - Fix: black screen on startup - caused by missing microphone / sound device
 - Fix: requirement to run the game as administrator to fix problems with VirtualStore folder and the need to have write access into Program Files folder (as it was possible in Windows XP)
+- Fix: Crouch to stand peak bug fix - matching the animation time to be the same as in 1st view
 - Improvement: windowed and borderless window mode
     - windowed mode: `r_fullscreen 0`
     - borderless mode: `r_fullscreen 0` and `r_mode [screen resolution]`
@@ -24,33 +25,38 @@ This "patch" or "extended version" is build on top of 1.3 version.
 - Change: dialog "Set Optimal Settings?" and "Recommended Settings Update" is removed
 - Change: new text in the console to indicate that CoD2x is loaded
 - Change: changed auto-update server with ability to download the latest version of CoD2x
-
+- Change: ability to connect both original 1.3 servers and new 1.4 servers
 
 
 # Plans
 - Set sv_cheats 1 when playing demo
 - Run the game without additional IWD files referenced to fix "iwd sum/name mismatch" error
-- Fix clipping bug by adjusting the player's animation transition time from crouch to stand (would require server-side fix, including linux binaries)
 - Translations for mod developers
 - URL protocol to connect to the server from website (cod2://ip:port)
 - Make it possible to show more than 4 servers in server browser on LAN
 - Detect if incorrect version of CoD2 is installed
 - Fix MG sensitivity
 - Fix numberic 8 and 2 when typing into console
-- Implement 1.4 version with server side patches
-- Implement dynamic version switch between 1.3 and 1.4
-    - 1.3 version -> basic fixes and improvements, without changing the gameplay (like Windows compatibility mode, microphone bug, fullscreen mode, black screen, etc)
-    - 1.4 version -> additional new features, it requires updated server side binaries
+- Hide IP in scoreboard for streamers to avoid server attacks
+- Add custom FPS counter rendering
 
 
 # Known issues
 - Single player not working
 
 
+# References
+- [CoD2rev_Server](https://github.com/voron00/CoD2rev_Server)
+- [CoD4x_Server](https://github.com/callofduty4x/CoD4x_Server)
+- [zk_libcod](https://github.com/ibuddieat/zk_libcod)
+- [Enemy-Territory](https://github.com/id-Software/Enemy-Territory)
+
+
+
 
 # How to install
 1. You need original Call of Duty 2 with version [1.3](https://www.moddb.com/games/call-of-duty-2/downloads/call-of-duty-2-pc-patch-v-13) installed.
-2. Download latest version of CoD2x - [CoD2x_v1_test5_windows.zip](https://github.com/eyza-cod2/CoD2x/releases/download/v1_test5/CoD2x_v1_test5_windows.zip)
+2. Download latest version of CoD2x - [CoD2x_v1_test6_windows.zip](https://github.com/eyza-cod2/CoD2x/releases/download/v1_test6/CoD2x_v1_test6_windows.zip)
 3. Extract the content of the archive to the Call of Duty 2 folder, replacing any existing file:
     - 📄 CoD2x Installation and uninstallation manual.txt
     - 📄 mss32.dll
@@ -78,10 +84,21 @@ This "patch" or "extended version" is build on top of 1.3 version.
     - 📄 mss32_original.dll  ->  📄 mss32.dll
 
 
+# How to install on Linux
+1. Extract the content of the archive to the Call of Duty 2 folder:
+    - 📄 CoD2x Installation and uninstallation manual.txt
+    - 📄 cod2_lnxded    (official 1.3 game version)
+    - 📄 libCoD2x.so
+2. Final structure should look like this:
+    - 📁 Call of Duty 2
+        - 📁 main
+        - 📁 pb
+        - 📄 CoD2x Installation and uninstallation manual.txt
+        - 📄 cod2_lnxded
+        - 📄 libCoD2x.so
+3. Run the game with LD_PRELOAD, for example:
+`LD_PRELOAD=libCoD2x.so ./cod2_lnxded +exec server.cfg`
 
-# Paths to consider
-`C:\Program Files\Steam\SteamApps\Common\Call of Duty 2\`
-`C:\Users\%USERNAME%\AppData\Local\VirtualStore\Program Files (x86)\Call of Duty 2\`
 
 
 # Install for developers
