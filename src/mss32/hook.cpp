@@ -7,6 +7,7 @@
 #include "admin.h"
 #include "window.h"
 #include "fps.h"
+#include "game.h"
 #include "../shared/common.h"
 #include "../shared/server.h"
 
@@ -47,6 +48,8 @@ void __cdecl hook_Com_Init_Dvars() {
     window_hook_init_cvars();
 
     fps_hook_init_cvars();
+
+    game_hook_init_cvars();
 }
 
 
@@ -90,6 +93,8 @@ int __cdecl hook_gfxDll() {
 void __cdecl hook_Com_Frame() {
 
     fps_hook_frame();
+
+    game_hook_frame();
 
     // Call the original function
 	((void (__cdecl *)())0x00434f70)();

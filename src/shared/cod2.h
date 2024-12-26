@@ -309,6 +309,41 @@ inline char* Info_ValueForKey(const char* buffer, const char* keyName) {
 
 
 
+#define SV_CMD_CAN_IGNORE 0
+#define SV_CMD_RELIABLE 1
+
+// Sends a command string to a client
+inline void SV_GameSendServerCommand( int clientNum, int svscmd_type, const char *text )
+{
+    #if COD2X_WIN32
+
+        #define sv_maxclients (*(dvar_t **)(0x00d52810))
+        #define SV_SendServerCommand       ((void (__cdecl*)())(0x000127d0))
+
+        if (clientNum < -1 || clientNum >= sv_maxclients->value.integer) 
+            return;
+        
+        void* client = (clientNum == -1) ? NULL : (void*)((uint32_t)(*((void**)(0x00d3570c))) + (0xb1064 * clientNum));
+        const char* ps = "%s";
+        
+        const void* original_func = (void*)(0x0045a670); // void* SV_SendServerCommand(int32_t* cl @ eax, int32_t type, char* msg, ...)
+        ASM( push,     text             ); // 4nd argument                    
+        ASM( push,     ps               ); // 3nd argument                    
+        ASM( push,     svscmd_type      ); // 2nd argument                    
+        ASM( mov,      "eax", client    ); // 1st argument
+        ASM( call,     original_func    ); 
+        ASM( add_esp,  12               ); // Clean up the stack (3 argument × 4 bytes = 12)     
+        
+    #endif
+    #if COD2X_LINUX 
+        ((void (*)(int, int, const char *))0x080917aa)(clientNum, svscmd_type, text);
+    #endif
+};
+
+// Set cvar on client side
+inline void SV_SetClientCvar(int clientNum, const char *cvarName, const char *cvarValue) {
+    SV_GameSendServerCommand(clientNum, SV_CMD_RELIABLE, va("%c %s \"%s\"", 118, cvarName, cvarValue));
+}
 
 
 
