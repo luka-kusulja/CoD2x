@@ -60,7 +60,7 @@
             "label": "Zip",
             "type": "shell",
             "command": "mingw32-make.exe",
-            "args": ["zip_win"],
+            "args": ["zip_all"],
             "group": {
                 "kind": "build"
             },
