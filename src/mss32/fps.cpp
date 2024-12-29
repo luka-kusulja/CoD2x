@@ -52,7 +52,7 @@ void fps_hook_frame() {
         clientStateLast = clientState;
 
         // If player is not connected to a server, reset the limit
-        if (clientState == CLIENT_STATE_UNINITIALIZED && com_maxFps_limit->value.boolean) {
+        if (clientState == CLIENT_STATE_DISCONNECTED && com_maxFps_limit->value.boolean) {
             Dvar_SetBool(com_maxFps_limit, false);
         }
     }

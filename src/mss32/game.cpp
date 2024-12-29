@@ -6,6 +6,7 @@
 
 #define clientState                   (*((clientState_e*)0x00609fe0))
 
+static int clientStateLast = -1;
 dvar_t* g_cod2x = NULL;
 bool firstTime = true;
 
@@ -25,11 +26,13 @@ void game_hook_init_cvars() {
 // Called every frame, before the original function
 void game_hook_frame() {
 
+    bool justDisconnected = clientState != clientStateLast && clientState == CLIENT_STATE_DISCONNECTED;
+
     // Cvar is not defined yet or player disconnected from the server
     if (g_cod2x != NULL) {
 
         // Player disconnected from the server, reset the cvar
-        if (g_cod2x->value.integer > 0 && clientState == CLIENT_STATE_UNINITIALIZED) {
+        if (g_cod2x->value.integer > 0 && justDisconnected) {
             Dvar_SetInt(g_cod2x, 0);
             g_cod2x->modified = true;
         }
@@ -45,6 +48,7 @@ void game_hook_frame() {
         }
     }
 
+    clientStateLast = clientState;
 }
 
 
