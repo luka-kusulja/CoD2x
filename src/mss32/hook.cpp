@@ -206,6 +206,9 @@ bool hook_patchExecutable() {
     fps_hook();
 
 
+    game_hook();
+
+
     //MessageBox(NULL, "Memory patched successfully!", "Info", MB_OK | MB_ICONINFORMATION);
     return TRUE;
 }
