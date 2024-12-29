@@ -335,8 +335,8 @@ LRESULT CALLBACK CoD2WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
                     yPos = rect.top;
                 }
 
-                Dvar_SetInt(vid_xpos, xPos + lpRect.left);
-                Dvar_SetInt(vid_ypos, yPos + lpRect.top);
+                Dvar_SetInt(vid_xpos, xPos);
+                Dvar_SetInt(vid_ypos, yPos);
 
                 vid_xpos->modified = false;
                 vid_ypos->modified = false;
