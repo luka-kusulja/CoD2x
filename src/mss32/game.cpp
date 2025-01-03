@@ -5,6 +5,7 @@
 #include <windows.h>
 
 #define clientState                   (*((clientState_e*)0x00609fe0))
+#define sv_cheats                     (*((dvar_t**)0x00c5c5cc))
 
 static int clientStateLast = -1;
 dvar_t* g_cod2x = NULL;
@@ -46,6 +47,12 @@ void game_hook_frame() {
             // Fix animation time from crouch to stand
             common_fix_clip_bug(g_cod2x->value.integer >= 1);
         }
+    }
+
+    // Enable cheats when player disconnects from the server
+    // It would allow to play demos without the need to do devmap
+    if (justDisconnected) {
+        Dvar_SetBool(sv_cheats, true);
     }
 
     clientStateLast = clientState;
