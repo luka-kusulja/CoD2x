@@ -131,4 +131,25 @@ void server_hook()
 
     // Hook the SV_ClientBegin function
     patch_call(ADDR(0x00454d12, 0x0808f6ee), (unsigned int)ADDR(SV_ClientBegin_Win32, SV_ClientBegin_Linux));
+
+
+
+
+    // Fix "+smoke" bug
+    // When player holds smoke or grenade button but its not available, the player will be able to shoot
+    // The problem is that when holding the frag/smoke key, the server sends an EV_EMPTY_OFFHAND event every client frame. 
+    // These events are buffered into an array of 4 items, overwriting any older events that were previously buffered. 
+    // Since the server frame is slower than the client frame, with sv_fps set to 30, snaps to 30, and cl_maxpackets to 100, 
+    // there are approximately 8 events the server might want to send to other players, but only 4 of them can actually 
+    // be sent through the network.
+
+    #if COD2X_WIN32
+        // replace jmp to ret (5 bytes)
+        // orig: 004f4f5f  e99cfeffff         jmp     PM_SendEmtpyOffhandEvent
+        // new:  004f4f5f  c390909090         ret
+        patch_copy(0x004f4f5f, (void*)"\xc3\x90\x90\x90\x90", 5); 
+    #endif
+    #if COD2X_LINUX
+        patch_nop(0x080efe12, 5); // remove call to PM_SendEmtpyOffhandEvent
+    #endif
 }
