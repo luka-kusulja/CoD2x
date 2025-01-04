@@ -1,7 +1,11 @@
 #include "common.h"
 #include "shared.h"
 
-
+//
+// This file contains functions that:
+//  - are used on both client and server side
+//  - are used in windows and linux version
+//
 
 // Fix animation time from crouch to stand
 // Need to be fixed both on client and server
