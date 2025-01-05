@@ -73,7 +73,7 @@ Aims primarily for the competitive community to fix bugs and add new features to
 
 # How to install (client on Windows)
 1. You need original Call of Duty 2 with version [1.3](https://www.moddb.com/games/call-of-duty-2/downloads/call-of-duty-2-pc-patch-v-13) installed.
-2. Download latest version of CoD2x - [CoD2x_v1_test6_windows.zip](https://github.com/eyza-cod2/CoD2x/releases/download/v1_test6/CoD2x_v1_test6_windows.zip)
+2. Download latest version of CoD2x - [CoD2x_v1_test7_windows.zip](https://github.com/eyza-cod2/CoD2x/releases/download/v1_test7/CoD2x_v1_test7_windows.zip)
 3. Extract the content of the archive to the Call of Duty 2 folder, replacing any existing file:
     - 📄 CoD2x Installation and uninstallation manual.txt
     - 📄 mss32.dll
