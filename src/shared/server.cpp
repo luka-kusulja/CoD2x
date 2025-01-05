@@ -163,8 +163,15 @@ void server_hook_init()
 // Called when common cvars are initialized on game start
 void server_hook_init_cvars()
 {
-    sv_masterServer = Dvar_RegisterString("sv_masterServer", "cod2master.activision.com", DVAR_ROM);
-    sv_masterPort = Dvar_RegisterInt("sv_masterPort", 20710, 0, 65535, DVAR_ROM);
+    for (int i = 0; i <= 1; i++)
+    {
+        dvarFlags_e flags = i == 0 ? 
+            (dvarFlags_e)(DVAR_LATCH | DVAR_CHANGEABLE_RESET) : // allow the value to be changed via cmd when starting the game
+            (dvarFlags_e)(DVAR_ROM | DVAR_CHANGEABLE_RESET);    // then make it read-only to avoid changes
+
+        sv_masterServer = Dvar_RegisterString("sv_masterServer", "cod2master.activision.com", flags);
+        sv_masterPort = Dvar_RegisterInt("sv_masterPort", 20710, 0, 65535, flags);
+    }
 }
 
 
