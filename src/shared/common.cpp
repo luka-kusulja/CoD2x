@@ -1,11 +1,82 @@
 #include "common.h"
 #include "shared.h"
 
+#if COD2X_WIN32
+    #include "../mss32/window.h"
+    #include "../mss32/fps.h"
+    #include "../mss32/game.h"
+#endif
+
+#include "server.h"
+
 //
 // This file contains functions that:
 //  - are used on both client and server side
 //  - are used in windows and linux version
 //
+
+
+
+
+/**
+ * Com_Init
+ * Is called in main function when the game is started. Is called only once on game start.
+ */
+void __cdecl hook_Com_Init(char* cmdline) {
+
+    Com_Printf("CMD: '%s'\n", cmdline);
+
+    // Call the original function
+	((void (__cdecl *)(char*))ADDR(0x00434460, 0x080620c0))(cmdline);
+
+    Com_Printf("-----------------------------------------------\n");
+    Com_Printf("CoD2x loaded\n");
+    Com_Printf("-----------------------------------------------\n");
+
+}
+
+
+
+/**
+ * Com_Init_Dvars
+ * Is called in Com_Init to initialize dvars like dedicated, com_maxfps, developer, logfile, etc..
+ * Is also called after all original dvars are registered
+ */
+void __cdecl hook_Com_Init_Dvars() {
+
+    // Call the original function
+	((void (__cdecl *)())ADDR(0x00434040, 0x08061d90))();
+
+    #if COD2X_WIN32
+        window_hook_init_cvars();
+
+        fps_hook_init_cvars();
+
+        game_hook_init_cvars();
+    #endif
+
+}
+
+
+/**
+ * Com_Frame
+ * Is called in the main loop every frame.
+ */
+void __cdecl hook_Com_Frame() {
+
+    #if COD2X_WIN32
+        fps_hook_frame();
+
+        game_hook_frame();
+    #endif
+
+    // Call the original function
+	((void (__cdecl *)())ADDR(0x00434f70, 0x080626f4))();
+}
+
+
+
+
 
 // Fix animation time from crouch to stand
 // Need to be fixed both on client and server
@@ -28,10 +99,23 @@ void common_fix_clip_bug(bool enable) {
 }
 
 
+
+
 // Server side hooks
 // The hooked functions are the same for both Windows and Linux
 void common_hook()
 {
+    // Patch Com_Init
+    patch_call(ADDR(0x00434a66, 0x0806233d), (unsigned int)hook_Com_Init);
+
+    // Patch function called in Com_Init that initializes dvars like dedicated, com_maxfps, developer, logfile, etc..
+    patch_call(ADDR(0x0043455d, 0x0806212e), (unsigned int)hook_Com_Init_Dvars);
+
+    // Patch Com_Frame
+    patch_call(ADDR(0x00435282, 0x0806281a), (unsigned int)hook_Com_Frame);
+
+
+
     // Print into console when the app is started -> "CoD2 MP 1.3 build win-x86 May  1 2006"
     patch_string_ptr(ADDR(0x00434467 + 1, 0x080620c6 + 4), __DATE__ " " __TIME__);          // originally win: "May  1 2006",  linux: "Jun 23 2006"
     patch_string_ptr(ADDR(0x0043446c + 1, 0x080620ce + 4), ADDR("win-x86", "linux-i386"));  // original
@@ -66,4 +150,15 @@ void common_hook()
         patch_byte(0x08093b3c + 4, PROTOCOL_VERSION);
     #endif
 
+
+
+    #if COD2X_WIN32
+        window_hook();
+        fps_hook();
+        game_hook();
+    #endif
+
+
+    // Hook server side functions
+    server_hook();
 }

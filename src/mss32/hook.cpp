@@ -2,14 +2,10 @@
 #include "shared.h"
 #include "mss32_original.h"
 #include "exception.h"
-#include "hook.h"
 #include "updater.h"
 #include "admin.h"
 #include "window.h"
-#include "fps.h"
-#include "game.h"
 #include "../shared/common.h"
-#include "../shared/server.h"
 
 #include <windows.h>
 #include <stdio.h>
@@ -18,40 +14,6 @@
 
 HMODULE hModule;
 unsigned int gfx_module_addr;
-
-
-
-/**
- * Com_Init
- * Is called in WinMain when the game is started
- * 00434460
- */
-void __cdecl hook_Com_Init(char* cmdline) {
-
-    //MessageBoxA(NULL, cmdline, "CoD2x", MB_OK | MB_ICONINFORMATION);
-
-    // Call the original function
-	((void (__cdecl *)(char*))0x00434460)(cmdline);
-}
-
-
-/**
- * Com_Init_Dvars
- * Is called in Com_Init to initialize dvars like dedicated, com_maxfps, developer, logfile, etc..
- * 00434040
- */
-void __cdecl hook_Com_Init_Dvars() {
-
-    // Call the original function
-	((void (__cdecl *)())0x00434040)();
-
-    window_hook_init_cvars();
-
-    fps_hook_init_cvars();
-
-    game_hook_init_cvars();
-}
-
 
 
 /**
@@ -85,22 +47,6 @@ int __cdecl hook_gfxDll() {
 }
 
 
-/**
- * Com_Frame
- * Is called in the main loop
- * 00434f70
- */
-void __cdecl hook_Com_Frame() {
-
-    fps_hook_frame();
-
-    game_hook_frame();
-
-    // Call the original function
-	((void (__cdecl *)())0x00434f70)();
-}
-
-
 
 
 /**
@@ -117,20 +63,8 @@ bool hook_patchExecutable() {
     // Patch CoD2MP_s.exe
     ///////////////////////////////////////////////////////////////////
 
-    // Patch Com_Init
-    patch_call(0x00434a66, (unsigned int)hook_Com_Init);
-
-    // Patch function called in Com_Init that initializes dvars like dedicated, com_maxfps, developer, logfile, etc..
-    patch_call(0x0043455d, (unsigned int)hook_Com_Init_Dvars);
-
     // Patch function that loads gfx_d3d_mp_x86_s.dll
     patch_call(0x004102b5, (unsigned int)hook_gfxDll);
-
-    // Patch Com_Frame
-    patch_call(0x00435282, (unsigned int)hook_Com_Frame);
-
-
-
 
 
     // Patch black screen / long loading on game startup
@@ -151,62 +85,22 @@ bool hook_patchExecutable() {
     patch_nop(0x0042d1a7, 5);           // e8346d0000 call sub_433ee0
 
 
-
-
-
     // Change text in console -> CoD2 MP: 1.3>
     patch_string_ptr(0x004064c6 + 1, "CoD2x [" APP_VERSION "] MP");
     patch_string_ptr(0x004064c1 + 1, PATCH_VERSION);
     patch_string_ptr(0x004064cb + 1, "%s: %s> ");
 
 
-
-
-
-
-
-
-
-    // Version info sent to master server via "getUpdateInfo2" UDB packet
-    //patch_string_ptr(0x004b4f60 + 1, "CoD2x MP");
-    //patch_string_ptr(0x004b4f5b + 1, "1.3." APP_NAME "_" APP_MSS32_VERSION);
-    //patch_string_ptr(0x004b4f56 + 1, "win-x86");
-
-    // Old version that is being set into cl_updateOldVersion when update response is received
-    //patch_string_ptr(0x00411a6e + 1, "1.3." APP_NAME "_" APP_MSS32_VERSION);
-
-    //patch_string_ptr(0x0041130a + 1, "cod2x.me"); // originaly cod2update.activision.com
-    //patch_push_string(0x00411320, ""); // originaly cod2update2.activision.com
-    //patch_push_string(0x00411338, ""); // originaly cod2update3.activision.com
-    //patch_push_string(0x00411350, ""); // originaly cod2update4.activision.com
-    //patch_push_string(0x00411368, ""); // originaly cod2update5.activision.com
-  
     // Hook function that was called on startup to send request to update server
-    patch_call(0x0041162f, (unsigned int)&updater_sendRequest);
-    
+    patch_call(0x0041162f, (unsigned int)&updater_sendRequest); 
     // Hook function that was called when update UDP packet was received from update server
     patch_call(0x0040ef9c, (unsigned int)&updater_updatePacketResponse);
-
     // Hook function was was called when user confirm the update dialog (it previously open url)
     patch_jump(0x0053bc40, (unsigned int)&updater_dialogConfirmed);
-    
 
 
+    // Hook shared functions for both Windows and Linux
     common_hook();
-
-
-    server_hook();
-
-
-
-    // Patch window
-    window_hook();
-
-
-    fps_hook();
-
-
-    game_hook();
 
 
     //MessageBox(NULL, "Memory patched successfully!", "Info", MB_OK | MB_ICONINFORMATION);
