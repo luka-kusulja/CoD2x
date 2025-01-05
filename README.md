@@ -18,16 +18,15 @@ Aims primarily for the competitive community to fix bugs and add new features to
 - Dialog "Set Optimal Settings?" and "Recommended Settings Update" is removed
 - New text in the console to indicate that CoD2x is loaded
 - Changed auto-update server with ability to download the latest version of CoD2x
-![alt text](images/cod2-auto-update.png)
+  - ![alt text](images/cod2-auto-update.png)
 - Ability to connect both original 1.3 servers and new 1.4 servers
 - New server errors descriptions when non-compatible clients tried to connect to the server
-![alt text](images/cod2-different-version-error.png)
-
+  - ![alt text](images/cod2-different-version-error.png)
 - Fixed black screen on startup - caused by missing microphone / sound device
 - Added requirement to run the game as administrator to fix problems with VirtualStore folder and the need to have write access into Program Files folder (as it was possible in Windows XP)
-![alt text](images/cod2-run-as-admin.png)
+  - ![alt text](images/cod2-run-as-admin.png)
 - Crouch to stand peak bug fix - matching the animation time to be the same as in 1st view 
-![alt text](images/cod2-clip-fix.gif)
+  - ![alt text](images/cod2-clip-fix.gif)
 - Fixed "+smoke" bug - when player holds smoke or grenade button, but has none, it suppresses sounds of firing, footsteps, jumping and other sounds for other players
 
 #### Improvements
@@ -40,7 +39,7 @@ Aims primarily for the competitive community to fix bugs and add new features to
     - enabled: `m_rinput 1` (raw mouse movement, not affected by Windows settings)
     - disabled: `m_rinput 0` (default)
 - Added possibility to restrict FPS via mod (like zPAM) into range 125 - 250 using new cvar `com_maxfps_limit` (the cvar is cheat protected and can be set only by the server)
-![alt text](images/cod2-com-max-fps.png)
+  - ![alt text](images/cod2-com-max-fps.png)
 - Ignoring custom IWD mods on game start to avoid runtime errors (only files starting with 'iw_' or 'localized_' are loaded)
 - Set sv_cheats 1 on disconnect to allow to play demo without the need to do devmap
 - Added possibility to change the master server via cvars `sv_masterServer`, `sv_masterPort`
