@@ -8,33 +8,51 @@ This "patch" or "extended version" is build on top of 1.3 version.
 > :warning: **Testing**: Right now only test version is available. Please just test if that patch is working and then uninstall it. It's not recommended to use it for official matches with anticheat enabled yet.
 
 
+Aims primarily for the competitive community to fix bugs and add new features to the game.
+
 
 # Features
-- Fix: black screen on startup - caused by missing microphone / sound device
-- Fix: requirement to run the game as administrator to fix problems with VirtualStore folder and the need to have write access into Program Files folder (as it was possible in Windows XP)
-- Fix: Crouch to stand peak bug fix - matching the animation time to be the same as in 1st view
-- Improvement: windowed and borderless window mode
+
+#### Changes
+- Dialog "Run in safe mode?" is removed
+- Dialog "Set Optimal Settings?" and "Recommended Settings Update" is removed
+- New text in the console to indicate that CoD2x is loaded
+- Changed auto-update server with ability to download the latest version of CoD2x
+![alt text](images/cod2-auto-update.png)
+- Ability to connect both original 1.3 servers and new 1.4 servers
+- New server errors descriptions when non-compatible clients tried to connect to the server
+![alt text](images/cod2-different-version-error.png)
+
+- Fixed black screen on startup - caused by missing microphone / sound device
+- Added requirement to run the game as administrator to fix problems with VirtualStore folder and the need to have write access into Program Files folder (as it was possible in Windows XP)
+![alt text](images/cod2-run-as-admin.png)
+- Crouch to stand peak bug fix - matching the animation time to be the same as in 1st view 
+![alt text](images/cod2-clip-fix.gif)
+- Fixed "+smoke" bug - when player holds smoke or grenade button, but has none, it suppresses sounds of firing, footsteps, jumping and other sounds for other players
+
+#### Improvements
+- Added windowed and borderless window mode:
     - windowed mode: `r_fullscreen 0`
     - borderless mode: `r_fullscreen 0` and `r_mode [screen resolution]`
     - fullscreen mode: `r_fullscreen 1` (default)
-- Improvement: rinput (raw input for mouse movement) 
+- Added support for rinput (raw input for mouse movement) 
+    - ![alt text](images/cod2-rinput.png)
     - enabled: `m_rinput 1` (raw mouse movement, not affected by Windows settings)
     - disabled: `m_rinput 0` (default)
-- Improvement: possibility to limit restrict FPS to range 125 - 250 via mod (like zPAM) using new cvar `com_maxfps_limit` (the cvar is cheat protected and can be set only by the server)
-- Change: dialog "Run in safe mode?" is removed
-- Change: dialog "Set Optimal Settings?" and "Recommended Settings Update" is removed
-- Change: new text in the console to indicate that CoD2x is loaded
-- Change: changed auto-update server with ability to download the latest version of CoD2x
-- Change: ability to connect both original 1.3 servers and new 1.4 servers
+- Added possibility to restrict FPS via mod (like zPAM) into range 125 - 250 using new cvar `com_maxfps_limit` (the cvar is cheat protected and can be set only by the server)
+![alt text](images/cod2-com-max-fps.png)
+- Ignoring custom IWD mods on game start to avoid runtime errors (only files starting with 'iw_' or 'localized_' are loaded)
+- Set sv_cheats 1 on disconnect to allow to play demo without the need to do devmap
+- Added possibility to change the master server via cvars `sv_masterServer`, `sv_masterPort`
+
+
 
 
 # Plans
-- Set sv_cheats 1 when playing demo
-- Run the game without additional IWD files referenced to fix "iwd sum/name mismatch" error
+- Fix the "iwd sum/name mismatch" error when there are too many IWD files
 - Translations for mod developers
 - URL protocol to connect to the server from website (cod2://ip:port)
 - Make it possible to show more than 4 servers in server browser on LAN
-- Detect if incorrect version of CoD2 is installed
 - Fix MG sensitivity
 - Fix numberic 8 and 2 when typing into console
 - Hide IP in scoreboard for streamers to avoid server attacks
@@ -54,7 +72,7 @@ This "patch" or "extended version" is build on top of 1.3 version.
 
 
 
-# How to install
+# How to install (client on Windows)
 1. You need original Call of Duty 2 with version [1.3](https://www.moddb.com/games/call-of-duty-2/downloads/call-of-duty-2-pc-patch-v-13) installed.
 2. Download latest version of CoD2x - [CoD2x_v1_test6_windows.zip](https://github.com/eyza-cod2/CoD2x/releases/download/v1_test6/CoD2x_v1_test6_windows.zip)
 3. Extract the content of the archive to the Call of Duty 2 folder, replacing any existing file:
@@ -76,7 +94,7 @@ This "patch" or "extended version" is build on top of 1.3 version.
         - 📄 **mss32_original.dll**
         - 📄 ... (other files)
 
-# How to uninstall
+# How to uninstall (client on Windows)
 1. Delete the following files:
     - 📄 CoD2x Installation and uninstallation manual.txt
     - 📄 mss32.dll
@@ -84,10 +102,10 @@ This "patch" or "extended version" is build on top of 1.3 version.
     - 📄 mss32_original.dll  ->  📄 mss32.dll
 
 
-# How to install on Linux
+# How to install (server on Linux)
 1. Extract the content of the archive to the Call of Duty 2 folder:
     - 📄 CoD2x Installation and uninstallation manual.txt
-    - 📄 cod2_lnxded    (official 1.3 game version)
+    - 📄 cod2_lnxded    *(official 1.3 game version)*
     - 📄 libCoD2x.so
 2. Final structure should look like this:
     - 📁 Call of Duty 2
@@ -101,7 +119,7 @@ This "patch" or "extended version" is build on top of 1.3 version.
 
 
 
-# Install for developers
+# How to install for developers
 1. Clone this repository.
 2. Copy .iwd files from original Call of Duty 2 1.3 main folder to `./bin/windows/main` folder in this repository (iw_01..iw_15 and localized_english_iw00..localized_english_iw11)
 3. Instal MinGW-w64 by Brecht Sanders [winlibs-i686-posix-dwarf-gcc-14.2.0-mingw-w64msvcrt-12.0.0-r2](https://github.com/brechtsanders/winlibs_mingw/releases/download/14.2.0posix-19.1.1-12.0.0-msvcrt-r2/winlibs-i686-posix-dwarf-gcc-14.2.0-mingw-w64msvcrt-12.0.0-r2.zip) into `./tools/mingw`
@@ -128,8 +146,25 @@ This "patch" or "extended version" is build on top of 1.3 version.
 5. Run VSCode as administrator (:warning: needed to be able to run CoD2 also as administrator while debugging)
 6. Use VSCode to compile, run and debug
 
+# Repository layout
+- 📁 **bin**
+    - 📁 **linux** - *Linux server binaries*
+    - 📁 **windows** - *Windows game binaries from original CD with 1.3 patch applied*
+- 📁 **src**
+    - 📁 **linux** - *code related only for Linux server*
+    - 📁 **mss32** - *code related for Windows, mimicking mss32.dll*
+    - 📁 **shared** - *code shared for both Linux server and Windows version*
+    - 📁 **other** - *reversed / testing code*
+- 📁 **tools** - *contains external tools for coding, compiling, etc..*
+- 📁 **zip** - *zip files are generated here*
 
-# How it works
+To avoid source code duplication, the code that is used for both Linux and Windows is placed in `📁src / 📁shared` folder. Its primarily a server side code. 
+
+The code that is related only for Windows version or Linux server is placed in particular folders `📁src / 📁mss32` or `📁src / 📁linux`, both sharing the shared folder.
+
+
+
+# How the Windows mss32.dll works
 CoD2MP_s.exe has following dynamic libraries:
 - WINMM.dll       
 - WSOCK32.dll     

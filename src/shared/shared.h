@@ -22,7 +22,7 @@
 #define APP_NAME "CoD2x"
 #define APP_URL "http://cod2x.me/"
 
-#define APP_VERSION "v1_test6"  // COD2X_RENAME
+#define APP_VERSION "v1_test7"  // COD2X_RENAME
 #define APP_VERSION_FULL APP_NAME "_" APP_VERSION    // CoD2x_v•_test•
 
 #define PATCH_VERSION "1.4"
