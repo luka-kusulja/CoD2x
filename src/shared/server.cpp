@@ -2,6 +2,14 @@
 #include "shared.h"
 #include "common.h"
 
+dvar_t* sv_masterPort;
+dvar_t* sv_masterServer;
+
+#define sv_masterAddress (*((netaddr_s*)( ADDR(0x019a6fe8, 0x0849fbe0) )))
+
+
+
+
 void SV_DirectConnect(netadrtype_e type, int32_t ip, uint32_t port, int32_t ipx1, int32_t ipx2)
 {
     Com_DPrintf("SV_DirectConnect(ip = %i.%i.%i.%i, port: %i)\n", (ip >> 0) & 0xFF, (ip >> 8) & 0xFF, (ip >> 16) & 0xFF, (ip >> 24) & 0xFF, port);
@@ -110,6 +118,60 @@ void SV_SpawnServer(char* mapname) {
 
 
 
+netaddr_s * custom_SV_MasterAddress(void)
+{
+	if ( sv_masterAddress.type == NA_BOT )
+	{
+		Com_Printf("Resolving %s\n", sv_masterServer->value.string);
+		if ( !NET_StringToAdr(sv_masterServer->value.string, &sv_masterAddress) )
+		{
+			Com_Printf("Couldn't resolve address: %s\n", sv_masterServer->value.string);
+		}
+		else
+		{
+			if ( !strstr(":", sv_masterServer->value.string) )
+			{
+				sv_masterAddress.port = BigShort(sv_masterPort->value.integer);
+			}
+			Com_Printf("%s resolved to %i.%i.%i.%i:%i\n",
+						sv_masterServer->value.string,
+						sv_masterAddress.ip[0],
+						sv_masterAddress.ip[1],
+						sv_masterAddress.ip[2],
+						sv_masterAddress.ip[3],
+						BigShort(sv_masterAddress.port));
+		}
+	}
+	return &sv_masterAddress;
+}
+
+
+// Called after all is initialized on game start
+void server_hook_init()
+{
+    #if COD2X_WIN32
+        // After the cvars are loaded, change the master server address
+        patch_string_ptr(0x004b3fa5 + 1, sv_masterServer->value.string);
+        patch_int32(0x004b3fb4 + 1, sv_masterPort->value.integer);
+
+        // Change the protocol used when requesting list of servers from master server
+        //patch_byte(0x00539727 + 1, PROTOCOL_VERSION);
+        patch_byte(0x00539727 + 1, 118);
+    #endif
+}
+
+// Called when common cvars are initialized on game start
+void server_hook_init_cvars()
+{
+    sv_masterServer = Dvar_RegisterString("sv_masterServer", "cod2master.activision.com", DVAR_ROM);
+    sv_masterPort = Dvar_RegisterInt("sv_masterPort", 20710, 0, 65535, DVAR_ROM);
+}
+
+
+
+
+
+
 // Server side hooks
 // The hooked functions are the same for both Windows and Linux
 void server_hook()
@@ -131,6 +193,13 @@ void server_hook()
 
     // Hook the SV_ClientBegin function
     patch_call(ADDR(0x00454d12, 0x0808f6ee), (unsigned int)ADDR(SV_ClientBegin_Win32, SV_ClientBegin_Linux));
+
+    
+    patch_call(ADDR(0x00452c13, 0x0808cf46), (unsigned int)custom_SV_MasterAddress); // in SV_UpdateLastTimeMasterServerCommunicated
+    patch_call(ADDR(0x00453038, 0x0808d44b), (unsigned int)custom_SV_MasterAddress); // in SV_GetChallenge
+    patch_call(ADDR(0x004b888f, 0x08096f14), (unsigned int)custom_SV_MasterAddress); // in SV_MasterHeartbeat
+    patch_call(ADDR(0x004b88f6, 0x08096f94), (unsigned int)custom_SV_MasterAddress); // in SV_MasterHeartbeat
+    patch_call(ADDR(0x004b8940, 0x08096fea), (unsigned int)custom_SV_MasterAddress); // in SV_MasterGameCompleteStatus
 
 
 

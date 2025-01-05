@@ -201,7 +201,11 @@ inline const char *Cmd_Argv( int arg )
 
 
 
-
+inline short BigShort(short l) {
+    void* func = *((void**)ADDR(0x00c93bc4, 0x085bc800));
+    short ret = (*(short(__cdecl*)(short))func)(l);
+    return ret;
+}
 
 // Send UDP packet to a server
 inline int NET_OutOfBandPrint(const char* msg, int mode, struct netaddr_s addr) {
@@ -251,10 +255,8 @@ inline int NET_OutOfBandData(const char* msg, int len, int mode, struct netaddr_
 }
 
 
-
-#if COD2X_WIN32
-    // Convert a string to a network address
-    inline int NET_StringToAdr(const char *updateServerUri, struct netaddr_s* a) {
+inline int NET_StringToAdr(const char *updateServerUri, struct netaddr_s* a) {
+    #if COD2X_WIN32
         const void* original_func = (void*)0x00448d50;
         int result;
         ASM( mov,   "eax", updateServerUri  );
@@ -262,13 +264,16 @@ inline int NET_OutOfBandData(const char* msg, int len, int mode, struct netaddr_
         ASM( call,  original_func           );
         ASM( movr,  result, "eax"           ); // Store the return value in the 'result' variable
         return result;
-    }
+    #endif
+    #if COD2X_LINUX
+        return ((int32_t (*)(const char *, struct netaddr_s*))0x0806cd98)(updateServerUri, a);
+    #endif
+}
 
-
+#if COD2X_WIN32
     inline int Sys_IsLANAddress(struct netaddr_s addr) {
         return ((int (*)(int, int, unsigned int, int, int))0x00467100)(addr.type, (int)addr.ip, addr.port, addr.ipx_data, addr.ipx_data2);
     }
-
 #endif
 
 

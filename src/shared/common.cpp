@@ -33,6 +33,7 @@ void __cdecl hook_Com_Init(char* cmdline) {
     Com_Printf("CoD2x loaded\n");
     Com_Printf("-----------------------------------------------\n");
 
+    server_hook_init();
 }
 
 
@@ -55,6 +56,7 @@ void __cdecl hook_Com_Init_Dvars() {
         game_hook_init_cvars();
     #endif
 
+    server_hook_init_cvars();
 }
 
 
