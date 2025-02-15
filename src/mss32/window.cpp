@@ -39,6 +39,7 @@
 #define win_wheelRool               (*((UINT*)0x00d7712c))
 
 #define input_mode                  (*((int*)0x0096b654))
+#define clientState                 (*((clientState_e*)0x00609fe0))
 
 dvar_t* m_debug;
 dvar_t* m_rinput;
@@ -50,8 +51,6 @@ int minWidth = 0;
 int minHeight = 0;
 
 bool in_menu_last = true;
-int last_mouse_x = 0;
-int last_mouse_y = 0;
 
 
 // 004648e0
@@ -63,7 +62,7 @@ void Mouse_DeactivateIngameCursor()
     mouse_ingameMouseActive = 0;
     ReleaseCapture();
     
-	while (ShowCursor(TRUE) < 0);
+	while (ShowCursor(TRUE) < 0); // show system cursor
 }
 
 // 00464750
@@ -77,9 +76,7 @@ void Mouse_ActivateIngameCursor()
     mouse_center_x = (rect.right + rect.left) / 2;
     mouse_center_y = (rect.bottom + rect.top) / 2;
 
-    SetCursorPos(mouse_center_x, mouse_center_y);
-
-	while (ShowCursor(FALSE) >= 0);
+	while (ShowCursor(FALSE) >= 0); // hide system cursor
 }
 
 
@@ -128,54 +125,25 @@ void Mouse_SetMenuCursorPos(int x, int y) {
 }
 
 
-// 00464b30
-void Mouse_Loop()
-{
-    // Originaly where was also some "ClickToContinue" cvar, removed
+void Mouse_ProcessMovement() {
 
-    if (mouse_isEnabled == 0)
-        return;
-
-    // Originally the cursor was showed in windowed move when console was opened, thats has been removed
-
-
-    // If the raw input cvar has been modified
-    if (m_rinput->modified) {
-        m_rinput->modified = false;
-
-        if (m_rinput->value.boolean) {
-            rinput_register();
-        } else {
-            rinput_unregister();
-        }
-    }
-
-
-    POINT cursorRelativePoint;
     POINT cursorPoint;
-
     GetCursorPos(&cursorPoint);
 
+    // Get the cursor position relative to the window client area (inner window)
+    POINT cursorRelativePoint = cursorPoint;
+    ScreenToClient(win_hwnd, &cursorRelativePoint);
 
-    bool in_menu = (input_mode & 8) != 0 && !cl_bypassMouseInput->value.boolean;
+    RECT clientRect;
+    GetClientRect(win_hwnd, &clientRect); // Get the inner area of the window
+
+
+    bool in_menu = ((input_mode & 8) != 0 && !cl_bypassMouseInput->value.boolean) || clientState < CLIENT_STATE_ACTIVE;
     bool menu_changed = in_menu != in_menu_last;
     in_menu_last = in_menu;
 
     // Windowed menu
     if (in_menu && !r_fullscreen->value.boolean) {
-
-        if (menu_changed) {
-            SetCursorPos(last_mouse_x, last_mouse_y);
-            cursorPoint.x = last_mouse_x;
-            cursorPoint.y = last_mouse_y;
-        }
-        
-        // Get the cursor position relative to the window client area (inner window)
-        cursorRelativePoint = cursorPoint;
-        ScreenToClient(win_hwnd, &cursorRelativePoint);
-
-        RECT clientRect;
-        GetClientRect(win_hwnd, &clientRect); // Get the inner area of the window
 
         // Check if rect has some size (might return 0 if the window is minimized)
         if (clientRect.right - clientRect.left <= 0 || clientRect.bottom - clientRect.top <= 0) {
@@ -191,15 +159,13 @@ void Mouse_Loop()
         // Cursor is outside window
         bool isInsideWindow = newMenuX >= 0 && newMenuX <= 640 && newMenuY >= 0 && newMenuY <= 480;
         if (isInsideWindow && !mouse_ingameMouseActive) {
-            SetCapture(win_hwnd);
-            while (ShowCursor(FALSE) >= 0); // hide system cursor
+            Mouse_ActivateIngameCursor(); // activate ingame cursor, hide system cursor
             mouse_ingameMouseActive = 1;
             if (m_debug->value.boolean)
                 Com_Printf("Hiding system cursor\n");
         }
         else if (!isInsideWindow && mouse_ingameMouseActive) {
-            ReleaseCapture();
-            while (ShowCursor(TRUE) < 0); // show system cursor
+            Mouse_DeactivateIngameCursor(); // deactivate ingame cursor, show system cursor
             mouse_ingameMouseActive = 0;
             if (m_debug->value.boolean)
                 Com_Printf("Show system cursor\n");
@@ -217,28 +183,31 @@ void Mouse_Loop()
     } else {
 
         if (menu_changed) {
-            last_mouse_x = cursorPoint.x;
-            last_mouse_y = cursorPoint.y;
-
             cursorPoint.x = mouse_center_x;
             cursorPoint.y = mouse_center_y;
-            rinput_x = 0;
-            rinput_y = 0;
         }
 
         // If the window is not active, deactivate the ingame cursor if it's active
-        if (!mouse_windowIsActive)
+        if (!mouse_windowIsActive || GetForegroundWindow() != win_hwnd)
         {
             Mouse_DeactivateIngameCursor();
             return;
         }
 
-        if (GetForegroundWindow() != win_hwnd)
-            return;
-
         // Activate the ingame cursor if it's not active yet
         if (mouse_ingameMouseActive == 0) {
+
+            // Cursor is outside the inner area of the window
+            bool cursorIsOutside = 
+                cursorRelativePoint.x <= clientRect.left || cursorRelativePoint.x >= clientRect.right || 
+                cursorRelativePoint.y <= clientRect.top || cursorRelativePoint.y >= clientRect.bottom;
+            if (cursorIsOutside)
+                return;
+
             Mouse_ActivateIngameCursor();
+
+            SetCursorPos(mouse_center_x, mouse_center_y);
+
             mouse_ingameMouseActive = 1;
             return;
         }
@@ -251,8 +220,6 @@ void Mouse_Loop()
         {
             x_offset = rinput_x;
             y_offset = rinput_y;
-            rinput_x = 0;
-            rinput_y = 0;
         }
         
         SetCursorPos(mouse_center_x, mouse_center_y);
@@ -284,6 +251,30 @@ void Mouse_Loop()
 }
 
 
+// 00464b30
+void Mouse_Loop()
+{
+    // If the raw input cvar has been modified
+    if (m_rinput->modified) {
+        m_rinput->modified = false;
+
+        if (m_rinput->value.boolean) {
+            rinput_register();
+        } else {
+            rinput_unregister();
+        }
+    }
+
+    if (mouse_isEnabled)
+    {
+        Mouse_ProcessMovement();
+    }
+
+    rinput_x = 0;
+    rinput_y = 0;
+}
+
+
 
 
 // 00468db0
@@ -307,6 +298,21 @@ LRESULT CALLBACK CoD2WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
         case WM_DESTROY: {
             win_hwnd = NULL;
             callOriginal = false;
+            break;
+        }
+
+        case WM_LBUTTONDOWN:
+        case WM_LBUTTONUP: 
+        case WM_RBUTTONDOWN: 
+        case WM_RBUTTONUP: 
+        case WM_MBUTTONDOWN:
+        case WM_MBUTTONUP: 
+        {
+            // In windowed borderless mode the menu cursor is based on the system cursor.
+            // Since we are hiding the system cursor, it wont automatically activate the window when clicking, so do it manually
+            if (r_fullscreen->value.integer == 0 && !win_isActivated) {
+                SetForegroundWindow(hwnd);
+            }
             break;
         }
 
