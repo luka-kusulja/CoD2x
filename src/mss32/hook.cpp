@@ -124,10 +124,6 @@ bool hook_patch() {
     ok = admin_check();
     if (!ok) return FALSE;
 
-    // Load the original mss32.dll functions
-    ok = mss32_load();
-    if (!ok) return FALSE;
-
     // Patch the game
     ok = hook_patchExecutable(); 
     if (!ok) return FALSE;
@@ -175,6 +171,26 @@ bool hook_patchEntryPoint() {
     HMODULE hModule = GetModuleHandle(NULL);
     if (!hModule) {
         SHOW_ERROR_WITH_LAST_ERROR("Failed to get application base address.");
+        return FALSE; 
+    }
+
+    // Load the original mss32.dll functions
+    bool ok = mss32_load();
+    if (!ok) return FALSE;
+
+    // Check if process is SinglePlayer, if it is, exit
+    char processName[MAX_PATH];
+    GetModuleFileNameA(hModule, processName, MAX_PATH);
+    if (strstr(processName, "CoD2SP_s.exe") != NULL) {
+        return TRUE;
+    }
+
+    // Check if this is CoD2MP version 1.3
+    char* cod2 = (char*)0x0059b6c0;
+    if (strcmp(cod2, "pc_1.3_1_1") != 0) {
+        MessageBoxA(NULL, 
+            "CoD2x " APP_VERSION " is not installed correctly.\n\n"
+            "You have to install patch 1.3 before installing CoD2x!", "CoD2x error", MB_OK | MB_ICONERROR);
         return FALSE; 
     }
 

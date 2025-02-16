@@ -15,7 +15,9 @@ static HMODULE originalDll = NULL;
 bool mss32_load() {
     originalDll = LoadLibrary("mss32_original.dll");
     if (originalDll == NULL) {
-        MessageBox(NULL, "Failed to load mss32_original.dll", "Error", MB_OK | MB_ICONERROR);
+        MessageBoxA(NULL, 
+            "CoD2x is not installed correctly.\n\n"
+            "Failed to load mss32_original.dll", "CoD2x error", MB_OK | MB_ICONERROR);
         return FALSE;
     }
 
