@@ -1,7 +1,7 @@
 # ==========================
 # Directories and Files
 # ==========================
-VERSION = v1_test8
+VERSION = 1.4.1.1
 
 # Output directories
 WIN_BIN_DIR = bin/windows
@@ -18,6 +18,8 @@ LINUX_OBJ_DIR = obj/linux
 LINUX_SRC_DIR = src/linux
 SHARED_SRC_DIR = src/shared
 SHARED_OBJ_DIR = obj/shared
+
+RCEDIT = tools/rcedit/rcedit-x86.exe
 
 # Define source files and target paths
 ZIP_EXEC = 7za.exe
@@ -97,6 +99,11 @@ build_mss32_win: $(WIN_MSS32_TARGET)
 $(WIN_MSS32_TARGET): $(WIN_MSS32_OBJECTS)
 	@echo "Linking $@..."
 	$(WIN_CC) $(WIN_LFLAGS) -o $@ $^ $(WIN_LIBS) $(WIN_MSS32_SRC_DIR)/mss32.def
+	
+	@echo "Embedding version info into $@..."
+	$(RCEDIT) $@ --set-version-string "ProductName" "CoD2x"
+	$(RCEDIT) $@ --set-version-string "ProductVersion" "$(VERSION)"
+	$(RCEDIT) $@ --set-file-version "$(VERSION)"
 
 $(WIN_MSS32_OBJ_DIR)/%.o: $(WIN_MSS32_SRC_DIR)/%.cpp | $(WIN_MSS32_OBJ_DIR)
 	@echo "Compiling $< for MSS32 (Windows)..."

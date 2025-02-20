@@ -86,8 +86,8 @@ bool hook_patchExecutable() {
 
 
     // Change text in console -> CoD2 MP: 1.3>
-    patch_string_ptr(0x004064c6 + 1, "CoD2x [" APP_VERSION "] MP");
-    patch_string_ptr(0x004064c1 + 1, PATCH_VERSION);
+    patch_string_ptr(0x004064c6 + 1, "CoD2x MP");
+    patch_string_ptr(0x004064c1 + 1, APP_VERSION);
     patch_string_ptr(0x004064cb + 1, "%s: %s> ");
 
 
@@ -116,9 +116,11 @@ bool hook_patch() {
     bool ok = FALSE;
 
     // Show warning message
-    MessageBoxA(NULL, 
-        "You successfully installed CoD2x " APP_VERSION ".\n\n"
-        "Note that this is a test version, we recommend you to uninstall it after trying it!", "CoD2x warning", MB_OK | MB_ICONINFORMATION);
+    if (APP_VERSION_IS_TEST) {
+        MessageBoxA(NULL, 
+            "You successfully installed CoD2x " APP_VERSION ".\n\n"
+            "Note that this is a test version, we recommend you to uninstall it after trying it!", "CoD2x warning", MB_OK | MB_ICONINFORMATION);
+    }
 
     // Check if the user is an admin
     ok = admin_check();
@@ -191,7 +193,7 @@ bool hook_patchEntryPoint() {
         MessageBoxA(NULL, 
             "CoD2x " APP_VERSION " is not installed correctly.\n\n"
             "You have to install patch 1.3 before installing CoD2x!", "CoD2x error", MB_OK | MB_ICONERROR);
-        return FALSE; 
+        return FALSE;
     }
 
     originalEntryPoint = (void*)0x0057db54; // Entry point of CoD2MP_s.exe

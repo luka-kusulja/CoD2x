@@ -39,29 +39,30 @@ void SV_DirectConnect(netadrtype_e type, int32_t ip, uint32_t port, int32_t ipx1
             case 117: msg = "Your version is 1.2\nYou need version 1.3 and CoD2x"; break;
             default: msg = "Your CoD2 version is unknown"; break;
         }
-        NET_OutOfBandPrint(va("error\nEXE_SERVER_IS_DIFFERENT_VER\x15%s%s\n\x00", PATCH_VERSION "\n" APP_VERSION_FULL "\n\n", msg), 1, addr);
+        NET_OutOfBandPrint(va("error\nEXE_SERVER_IS_DIFFERENT_VER\x15%s%s\n\x00", APP_VERSION "\n\n", msg), 1, addr);
         Com_DPrintf("    rejected connect from protocol version %i (should be %i)\n", protocolNum, 118);
         return;
     }
 
     int32_t cod2xNum = atol(Info_ValueForKey(str, "protocol_cod2x"));
 
+    // CoD2x is not installed on 1.3 client
     if (cod2xNum == 0) {
         NET_OutOfBandPrint(va(
             "error\nEXE_SERVER_IS_DIFFERENT_VER\x15%s\n\x00", 
-            PATCH_VERSION "\n" APP_VERSION_FULL " (protocol " TOSTRING(PROTOCOL_VERSION_COD2X) ")" "\n\n" "Download CoD2x at:\n" APP_URL ""), 
+            APP_VERSION "\n\n" "Download CoD2x at:\n" APP_URL ""), 
         1, addr);
         Com_DPrintf("    rejected connect from non-CoD2x version\n");
         return;
     }
 
-    if (cod2xNum < PROTOCOL_VERSION_COD2X) // Older client can not connect newer server
-    {
+    // CoD2x is installed but the version is different
+    if (cod2xNum < APP_VERSION_PROTOCOL) { // Older client can not connect newer server
         const char* msg = va(
             "error\nEXE_SERVER_IS_DIFFERENT_VER\x15%s\n\x00", 
-            PATCH_VERSION "\n" APP_VERSION_FULL " (protocol " TOSTRING(PROTOCOL_VERSION_COD2X) ")" "\n\n" "Update CoD2x to version " APP_VERSION " or above");
+            APP_VERSION "\n\n" "Update CoD2x to version " APP_VERSION " or above");
         NET_OutOfBandPrint(msg, 1, addr);
-        Com_DPrintf("    rejected connect from CoD2x version %i (should be %i)\n", cod2xNum, PROTOCOL_VERSION_COD2X);
+        Com_DPrintf("    rejected connect from CoD2x version %i (should be %i)\n", cod2xNum, APP_VERSION_PROTOCOL);
         return;
     }
 
@@ -78,7 +79,7 @@ void SV_ClientBegin(int clientNum) {
     
     // Set client cvar g_cod2x
     // This will ensure that the same client side bug fixes are applied
-    SV_SetClientCvar(clientNum, "g_cod2x", TOSTRING(PROTOCOL_VERSION_COD2X));
+    SV_SetClientCvar(clientNum, "g_cod2x", TOSTRING(APP_VERSION_PROTOCOL));
 
 }
 

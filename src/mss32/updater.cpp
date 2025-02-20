@@ -130,7 +130,7 @@ bool updater_sendRequest() {
     Com_DPrintf("%i.%i.%i.%i:%i\n", updater_address.ip[0], updater_address.ip[1], updater_address.ip[2], updater_address.ip[3], autoUpatePort);
 
     // Send the request to the Auto-Update server
-    char* udpPayload = va("getUpdateInfo2 \"%s\" \"%s\" \"%s\"\n", "CoD2x MP", PATCH_VERSION "." APP_VERSION, "win-x86");
+    char* udpPayload = va("getUpdateInfo2 \"%s\" \"%s\" \"%s\"\n", "CoD2x MP", APP_VERSION, "win-x86");
 
     autoUpdateServer_IsDone = NET_OutOfBandPrint(udpPayload, 0, updater_address);
     
@@ -174,7 +174,7 @@ void updater_updatePacketResponse(struct netaddr_s addr)
     Dvar_SetString(cl_updateVersion, newVersionString);
 
 
-    Dvar_SetString(cl_updateOldVersion, PATCH_VERSION_FULL);
+    Dvar_SetString(cl_updateOldVersion, APP_VERSION);
 
     return;
 }

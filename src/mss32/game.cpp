@@ -15,10 +15,10 @@ bool firstTime = true;
 void game_hook_init_cvars() {
 
     // Register USERINFO cvar that is automatically appended to the client's userinfo string sent to the server
-    Dvar_RegisterInt("protocol_cod2x", PROTOCOL_VERSION_COD2X, PROTOCOL_VERSION_COD2X, PROTOCOL_VERSION_COD2X, (enum dvarFlags_e)(DVAR_USERINFO | DVAR_ROM));
+    Dvar_RegisterInt("protocol_cod2x", APP_VERSION_PROTOCOL, APP_VERSION_PROTOCOL, APP_VERSION_PROTOCOL, (enum dvarFlags_e)(DVAR_USERINFO | DVAR_ROM));
     
     // Register shared cvar between client and server
-    g_cod2x = Dvar_RegisterInt("g_cod2x", 0, 0, PROTOCOL_VERSION_COD2X, (dvarFlags_e)(DVAR_CHEAT));
+    g_cod2x = Dvar_RegisterInt("g_cod2x", 0, 0, APP_VERSION_PROTOCOL, (dvarFlags_e)(DVAR_CHEAT));
 
     firstTime = false;
 }
