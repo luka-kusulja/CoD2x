@@ -27,9 +27,9 @@
             "name": "Debug CoD2x Linux",
             "type": "cppdbg",
             "request": "launch",
-            "program": "/tmp/CoD2x/cod2_lnxded",
+            "program": "~/CoD2x/cod2_lnxded",
             "miDebuggerPath": "/usr/bin/gdb",
-            "cwd": "/tmp/CoD2x/",
+            "cwd": "~/CoD2x/",
             "setupCommands": [
                 {
                     "description": "Connect to gdbserver",

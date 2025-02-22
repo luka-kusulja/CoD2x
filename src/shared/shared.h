@@ -8,7 +8,7 @@
 
 // CoD2x is currecntly supported on Windows and Linux
 // Based on the platform, the appropriate code will be compiled
-#ifdef _WIN32
+#if _WIN32 == 1
     #define COD2X_WIN32 1
     #define COD2X_LINUX 0
 #else
