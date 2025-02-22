@@ -101,13 +101,6 @@ struct netaddr_s updater_address;
 
 bool autoUpdateServer_IsDone = 0;
 
-#if 1
-static const char *autoUpateUri = "master.cod2x.me";
-static INT16 autoUpatePort = 28960;
-#else
-static const char *autoUpateUri = "127.0.0.1";
-static INT16 autoUpatePort = 28961;
-#endif
 
 
 // This function is called on startup to check for updates
@@ -117,17 +110,17 @@ bool updater_sendRequest() {
     if (autoUpdateServer_IsDone)
         return 0;
 
-    Com_DPrintf("Resolving AutoUpdate Server... ");
+    Com_DPrintf("Resolving AutoUpdate Server...\n");
 
-    if (!NET_StringToAdr(autoUpateUri, &updater_address))
+    if (!NET_StringToAdr(UPDATE_SERVER_URI, &updater_address))
     {
         Com_DPrintf("\nFailed to resolve any Auto-update servers.\n");
         return 0;
     }
 
-    updater_address.port = (autoUpatePort >> 8) | (autoUpatePort << 8); // Swap the port bytes
-
-    Com_DPrintf("%i.%i.%i.%i:%i\n", updater_address.ip[0], updater_address.ip[1], updater_address.ip[2], updater_address.ip[3], autoUpatePort);
+    updater_address.port = (uint16_t)((UPDATE_SERVER_PORT >> 8) | (UPDATE_SERVER_PORT << 8)); // Swap the port bytes
+    
+    Com_DPrintf("%i.%i.%i.%i:%i\n", updater_address.ip[0], updater_address.ip[1], updater_address.ip[2], updater_address.ip[3], UPDATE_SERVER_PORT);
 
     // Send the request to the Auto-Update server
     char* udpPayload = va("getUpdateInfo2 \"%s\" \"%s\" \"%s\"\n", "CoD2x MP", APP_VERSION, "win-x86");

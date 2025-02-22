@@ -26,6 +26,16 @@
 #define APP_URL "http://cod2x.me/"
 
 
+// Update server
+#if 1
+    #define UPDATE_SERVER_URI "master.cod2x.me"
+    #define UPDATE_SERVER_PORT 20720
+#else
+    #define UPDATE_SERVER_URI "127.0.0.1"
+    #define UPDATE_SERVER_PORT 20720
+#endif
+
+
 // Version
 //  Uses a.b.c.d versioning style using this sequence:
 //      a - major       - always 1

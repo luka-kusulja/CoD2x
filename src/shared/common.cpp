@@ -7,6 +7,10 @@
     #include "../mss32/game.h"
 #endif
 
+#if COD2X_LINUX
+    #include "../linux/updater.h"
+#endif
+
 #include "server.h"
 
 //
@@ -29,9 +33,13 @@ void __cdecl hook_Com_Init(char* cmdline) {
     // Call the original function
 	((void (__cdecl *)(char*))ADDR(0x00434460, 0x080620c0))(cmdline);
 
-    Com_Printf("-----------------------------------------------\n");
+    Com_Printf("-----------------------------------\n");
     Com_Printf("CoD2x " APP_VERSION " loaded\n");
-    Com_Printf("-----------------------------------------------\n");
+    Com_Printf("-----------------------------------\n");
+
+    #if COD2X_LINUX
+        updater_hook_Com_Init();
+    #endif
 
     server_hook_init();
 }
@@ -54,6 +62,10 @@ void __cdecl hook_Com_Init_Dvars() {
         fps_hook_init_cvars();
 
         game_hook_init_cvars();
+    #endif
+
+    #if COD2X_LINUX
+        updater_hook_Com_Init_Dvars();
     #endif
 
     server_hook_init_cvars();
@@ -159,7 +171,9 @@ void common_hook()
         fps_hook();
         game_hook();
     #endif
-
+    #if COD2X_LINUX
+        updater_hook();
+    #endif
 
     // Hook server side functions
     server_hook();
