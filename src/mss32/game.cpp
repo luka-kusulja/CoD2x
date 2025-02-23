@@ -18,7 +18,7 @@ void game_hook_init_cvars() {
     Dvar_RegisterInt("protocol_cod2x", APP_VERSION_PROTOCOL, APP_VERSION_PROTOCOL, APP_VERSION_PROTOCOL, (enum dvarFlags_e)(DVAR_USERINFO | DVAR_ROM));
     
     // Register shared cvar between client and server
-    g_cod2x = Dvar_RegisterInt("g_cod2x", 0, 0, APP_VERSION_PROTOCOL, (dvarFlags_e)(DVAR_CHEAT));
+    g_cod2x = Dvar_RegisterInt("g_cod2x", 0, 0, APP_VERSION_PROTOCOL, (dvarFlags_e)(DVAR_NOWRITE));
 
     firstTime = false;
 }

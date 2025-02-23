@@ -9,7 +9,7 @@ enum dvarFlags_e : uint16_t
     DVAR_USERINFO = 0x2,    // cvars used in connection string
     DVAR_SERVERINFO = 0x4,  // cvars used to describe the server settings to clients
     DVAR_SYSTEMINFO = 0x8,  // cvars describing the server system resources, like iwds
-    DVAR_NOWRITE = 0x10,
+    DVAR_NOWRITE = 0x10,    // write protected, but can be changed by server
     DVAR_LATCH = 0x20,
     DVAR_ROM = 0x40,
     DVAR_CHEAT = 0x80,

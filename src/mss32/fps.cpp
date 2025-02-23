@@ -14,7 +14,7 @@ int clientStateLast = 0;
 
 // Called when the game initializes cvars (Com_Init)
 void fps_hook_init_cvars() {
-    com_maxFps_limit = Dvar_RegisterBool("com_maxfps_limit", false, (enum dvarFlags_e)(DVAR_CHEAT | DVAR_CHANGEABLE_RESET));
+    com_maxFps_limit = Dvar_RegisterBool("com_maxfps_limit", false, (enum dvarFlags_e)(DVAR_NOWRITE | DVAR_CHANGEABLE_RESET));
 
     clientStateLast = clientState;
 }
