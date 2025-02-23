@@ -1,16 +1,16 @@
 --------------------------
 - CoD2x
 --------------------------
-https://github.com/eyza-cod2/CoD2x
+https://github.com/callofduty2x/CoD2x
 
 
 --------------------------
 - How to install
 --------------------------
-1. Extract the content of the archive to the Call of Duty 2 folder, replacing any existing file:
-    - 📄 CoD2x Installation and uninstallation manual.txt
+1. Extract these files from the archive to the Call of Duty 2 folder, replacing any existing file:
     - 📄 mss32.dll
     - 📄 mss32_original.dll
+
 2. Final structure should look like this:
     - 📁 Call of Duty 2
         - 📁 Docs
@@ -19,19 +19,21 @@ https://github.com/eyza-cod2/CoD2x
         - 📁 pb
         - 📄 CoD2MP_s.exe
         - 📄 CoD2SP_s.exe
-        - 📄 CoD2x Installation and uninstallation manual.txt
         - 📄 gfx_d3d_mp_x86_s.dll
         - 📄 gfx_d3d_x86_s.dll
         - 📄 mss32.dll
         - 📄 mss32_original.dll
         - 📄 ... (other files)
 
+3. The archive also contains additional files that are not required to be installed:
+    - 📄 CoD2x Installation and uninstallation manual.txt
+
+
 
 --------------------------
 - How to uninstall
 --------------------------
 1. Delete the following files:
-    - 📄 CoD2x Installation and uninstallation manual.txt
     - 📄 mss32.dll
 2. Rename following file:
     - 📄 mss32_original.dll  ->  📄 mss32.dll

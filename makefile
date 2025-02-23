@@ -2,6 +2,7 @@
 # Directories and Files
 # ==========================
 VERSION = 1.4.1.1
+VERSION_COMMA = 1,4,1,1
 
 # Output directories
 WIN_BIN_DIR = bin/windows
@@ -96,22 +97,25 @@ all: build_mss32_win build_cod2x_linux
 build_mss32_win: $(WIN_MSS32_TARGET)
 	@echo "MSS32 (Windows) build complete."
 
-$(WIN_MSS32_TARGET): $(WIN_MSS32_OBJECTS)
+# Linking with resource file
+$(WIN_MSS32_TARGET): $(WIN_MSS32_OBJECTS) $(WIN_MSS32_OBJ_DIR)/version.res
 	@echo "Linking $@..."
 	$(WIN_CC) $(WIN_LFLAGS) -o $@ $^ $(WIN_LIBS) $(WIN_MSS32_SRC_DIR)/mss32.def
-	
-	@echo "Embedding version info into $@..."
-	$(RCEDIT) $@ --set-version-string "ProductName" "CoD2x"
-	$(RCEDIT) $@ --set-version-string "ProductVersion" "$(VERSION)"
-	$(RCEDIT) $@ --set-file-version "$(VERSION)"
 
+# Compile C++ files
 $(WIN_MSS32_OBJ_DIR)/%.o: $(WIN_MSS32_SRC_DIR)/%.cpp | $(WIN_MSS32_OBJ_DIR)
 	@echo "Compiling $< for MSS32 (Windows)..."
 	$(WIN_CC) $(WIN_CFLAGS) -MMD -MP -c -o $@ $<
 
+# Assemble ASM files
 $(WIN_MSS32_OBJ_DIR)/%.o: $(WIN_MSS32_SRC_DIR)/%.asm | $(WIN_MSS32_OBJ_DIR)
 	@echo "Assembling $< for MSS32 (Windows)..."
 	$(WIN_AS) $(WIN_ASFLAGS) $< -o $@
+
+# Compile version.rc into a .res file
+$(WIN_MSS32_OBJ_DIR)/version.res: $(WIN_MSS32_SRC_DIR)/version.rc
+	@echo "Compiling resource file..."
+	windres $(WIN_MSS32_SRC_DIR)/version.rc -D VERSION_COMMA="$(VERSION_COMMA)" -D VERSION_DOT="$(VERSION)" -O coff -o $@
 
 
 # CoD2x Linux target

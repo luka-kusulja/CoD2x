@@ -1,14 +1,10 @@
 # CoD2x
 ![alt text](images/cod2-window.png)
 
-CoD2x is modification of Call of Duty 2 client and server.
+CoD2x is a modification of Call of Duty 2. Its build on top of 1.3 version.
 
-This "patch" or "extended version" is build on top of 1.3 version.
+It focuses on fixing bugs and adding new features to the game.
 
-> :warning: **Testing**: Right now only test version is available. Please just test if that patch is working and then uninstall it. It's not recommended to use it for official matches with anticheat enabled yet.
-
-
-Aims primarily for the competitive community to fix bugs and add new features to the game.
 
 
 # Features
@@ -47,35 +43,11 @@ Aims primarily for the competitive community to fix bugs and add new features to
 
 
 
-# Plans
-- Fix the "iwd sum/name mismatch" error when there are too many IWD files
-- Translations for mod developers
-- URL protocol to connect to the server from website (cod2://ip:port)
-- Make it possible to show more than 4 servers in server browser on LAN
-- Fix MG sensitivity
-- Fix numberic 8 and 2 when typing into console
-- Hide IP in scoreboard for streamers to avoid server attacks
-- Add custom FPS counter rendering
-
-
-# Known issues
-- Single player not working
-
-
-# References
-- [CoD2rev_Server](https://github.com/voron00/CoD2rev_Server)
-- [CoD4x_Server](https://github.com/callofduty4x/CoD4x_Server)
-- [zk_libcod](https://github.com/ibuddieat/zk_libcod)
-- [Enemy-Territory](https://github.com/id-Software/Enemy-Territory)
-
-
-
 
 # How to install (client on Windows)
 1. You need original Call of Duty 2 with version [1.3](https://www.moddb.com/games/call-of-duty-2/downloads/call-of-duty-2-pc-patch-v-13) installed.
-2. Download latest version of CoD2x - [CoD2x_v1_test8_windows.zip](https://github.com/eyza-cod2/CoD2x/releases/download/v1_test8/CoD2x_v1_test8_windows.zip)
-3. Extract the content of the archive to the Call of Duty 2 folder, replacing any existing file:
-    - 📄 CoD2x Installation and uninstallation manual.txt
+2. Download latest version of CoD2x - [CoD2x_1.4.1.1_windows.zip](https://github.com/eyza-cod2/CoD2x/releases/download/1.4.1.1/CoD2x_1.4.1.1_windows.zip)
+3. Extract these files from the archive to the Call of Duty 2 folder, replacing any existing file:
     - 📄 mss32.dll
     - 📄 mss32_original.dll
 4. Final structure should look like this:
@@ -86,35 +58,40 @@ Aims primarily for the competitive community to fix bugs and add new features to
         - 📁 pb
         - 📄 CoD2MP_s.exe
         - 📄 CoD2SP_s.exe
-        - 📄 **CoD2x Installation and uninstallation manual.txt**
         - 📄 gfx_d3d_mp_x86_s.dll
         - 📄 gfx_d3d_x86_s.dll
         - 📄 **mss32.dll**
         - 📄 **mss32_original.dll**
         - 📄 ... (other files)
+5. The archive also contains additional files that are not required to be installed:
+    - 📄 CoD2x Installation and uninstallation manual.txt
+
 
 # How to uninstall (client on Windows)
 1. Delete the following files:
-    - 📄 CoD2x Installation and uninstallation manual.txt
     - 📄 mss32.dll
 2. Rename following file:
     - 📄 mss32_original.dll  ->  📄 mss32.dll
 
 
 # How to install (server on Linux)
-1. Extract the content of the archive to the Call of Duty 2 folder:
-    - 📄 CoD2x Installation and uninstallation manual.txt
-    - 📄 cod2_lnxded    *(official 1.3 game version)*
+1. Extract this file from the archive to the Call of Duty 2 folder:
     - 📄 libCoD2x.so
 2. Final structure should look like this:
     - 📁 Call of Duty 2
         - 📁 main
         - 📁 pb
-        - 📄 CoD2x Installation and uninstallation manual.txt
         - 📄 cod2_lnxded
         - 📄 libCoD2x.so
-3. Run the game with LD_PRELOAD, for example:
+3. The archive also contains additional files that are not required to be installed:
+    - 📄 CoD2x Installation and uninstallation manual.txt
+    - 📄 cod2_lnxded    (official 1.3 game version)
+4. Run the game with LD_PRELOAD, for example:
 `LD_PRELOAD=libCoD2x.so ./cod2_lnxded +exec server.cfg`
+5. Auto-update is enabled by default. Make sure to enable UDP port 20720. If you want to disable auto-update, set `sv_update "0"` or disable UDP port 20720. On server start, the server will check for the latest version of CoD2x and download it if available. File libCoD2x.so will be replaced with the latest version. Process restart is needed to apply the update. 
+
+
+
 
 
 
@@ -199,6 +176,21 @@ These functions act as a proxy to the original functions in the original mss32.d
 
 When our mss32.dll is loaded, it loads mss32_original.dll and redirect all exported functions.
 It also runs patching process that modifies the game memory to fix some bugs and add new features.
+
+
+# References
+- [CoD2rev_Server](https://github.com/voron00/CoD2rev_Server)
+- [CoD4x_Server](https://github.com/callofduty4x/CoD4x_Server)
+- [zk_libcod](https://github.com/ibuddieat/zk_libcod)
+- [Enemy-Territory](https://github.com/id-Software/Enemy-Territory)
+
+
+
+## Support
+You can support this project by donating via PayPal:
+[![Donate with PayPal](images/paypal.png)](https://www.paypal.com/donate/?hosted_button_id=R59Y6UN9LJVXQ)
+
+
 
 # Logo
 ![alt text](images/logo.png)

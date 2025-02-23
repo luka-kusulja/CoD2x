@@ -1,36 +1,37 @@
 --------------------------
 - CoD2x
 --------------------------
-https://github.com/eyza-cod2/CoD2x
+https://github.com/callofduty2x/CoD2x
 
 
 --------------------------
 - How to install
 --------------------------
-1. Extract the content of the archive to the Call of Duty 2 folder:
-    - 📄 CoD2x Installation and uninstallation manual.txt
-    - 📄 cod2_lnxded    (official 1.3 game version)
+1. Extract this file from the archive to the Call of Duty 2 folder:
     - 📄 libCoD2x.so
+
 2. Final structure should look like this:
     - 📁 Call of Duty 2
         - 📁 main
         - 📁 pb
-        - 📄 CoD2x Installation and uninstallation manual.txt
         - 📄 cod2_lnxded
         - 📄 libCoD2x.so
+
+3. The archive also contains additional files that are not required to be installed:
+    - 📄 CoD2x Installation and uninstallation manual.txt
+    - 📄 cod2_lnxded    (official 1.3 game version)
+
+4. Run the game with LD_PRELOAD, for example:
+LD_PRELOAD=libCoD2x.so ./cod2_lnxded +exec server.cfg
+
+5. Auto-update is enabled by default. Make sure to enable UDP port 20720. 
+If you want to disable auto-update, set `sv_update "0"` or disable UDP port 20720. 
+On server start, the server will check for the latest version of CoD2x and download it if available. 
+File libCoD2x.so will be replaced with the latest version. Process restart is needed to apply the update. 
 
 
 --------------------------
 - How to uninstall
 --------------------------
 1. Delete the following files:
-    - 📄 CoD2x Installation and uninstallation manual.txt
     - 📄 libCoD2x.so
-
-
-
---------------------------
-- How to run
---------------------------
-Run the game with LD_PRELOAD, for example:
-LD_PRELOAD=libCoD2x.so ./cod2_lnxded +exec server.cfg
