@@ -1,8 +1,8 @@
 # ==========================
 # Directories and Files
 # ==========================
-VERSION = 1.4.1.1
-VERSION_COMMA = 1,4,1,1
+VERSION = 1.4.2.1
+VERSION_COMMA = 1,4,2,1
 
 # Output directories
 WIN_BIN_DIR = bin/windows
@@ -236,6 +236,7 @@ clean: zip_win_clean zip_linux_clean
 	@if exist $(subst /,\, $(LINUX_OBJ_DIR))\*.d del /Q $(subst /,\, $(LINUX_OBJ_DIR))\*.d
 	@if exist $(subst /,\, $(WIN_MSS32_TARGET)) del /Q $(subst /,\, $(WIN_MSS32_TARGET))
 	@if exist $(subst /,\, $(LINUX_TARGET)) del /Q $(subst /,\, $(LINUX_TARGET))
+	@if exist $(subst /,\, $(WIN_MSS32_OBJ_DIR)/version.res) del /Q $(subst /,\, $(WIN_MSS32_OBJ_DIR)/version.res)
 	@echo "Done."
 
 # ==========================

@@ -57,7 +57,7 @@
 // Should be increased only if the changed functionalities that affect both server and client
 // Newer client can connect older server
 // Older client can not connect newer server
-#define APP_VERSION_PROTOCOL 1
+#define APP_VERSION_PROTOCOL 2
 
 // CoD2x patch version
 // Should be increased when new version is released and the changes are backward compatible
