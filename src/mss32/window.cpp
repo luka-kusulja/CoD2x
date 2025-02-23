@@ -145,6 +145,23 @@ void Mouse_ProcessMovement() {
     // Windowed menu
     if (in_menu && !r_fullscreen->value.boolean) {
 
+        if (menu_changed) {
+            // Set cursor position to top left corner of the window
+            cursorPoint.x -= cursorRelativePoint.x;
+            cursorPoint.y -= cursorRelativePoint.y;
+            // If the cursor is outside the window, set it to the center
+            if (menu_cursorX < 0 || menu_cursorX > 640 || menu_cursorY < 0 || menu_cursorY > 480) {
+                menu_cursorX = 320;
+                menu_cursorY = 240;
+            }
+            // Get last menu cursor and translate it to monitor coordinates
+            cursorPoint.x += clientRect.left + (menu_cursorX * (clientRect.right - clientRect.left)) / 640;
+            cursorPoint.y += clientRect.top + (menu_cursorY * (clientRect.bottom - clientRect.top)) / 480;
+
+            SetCursorPos(cursorPoint.x, cursorPoint.y);
+            return;
+        }
+
         // Check if rect has some size (might return 0 if the window is minimized)
         if (clientRect.right - clientRect.left <= 0 || clientRect.bottom - clientRect.top <= 0) {
             Mouse_DeactivateIngameCursor();
@@ -179,12 +196,16 @@ void Mouse_ProcessMovement() {
         Mouse_SetMenuCursorPos(newMenuX, newMenuY);
 
 
-    // Fullscreen or windowed game
+    // Fullscreen menu or windowed game, use centering offset method
     } else {
 
+        // Menu has been opened or closed
         if (menu_changed) {
-            cursorPoint.x = mouse_center_x;
-            cursorPoint.y = mouse_center_y;
+            // In windowed mode the system cursor is not in center, avoid artificial movement
+            if (!r_fullscreen->value.boolean) {
+                cursorPoint.x = mouse_center_x;
+                cursorPoint.y = mouse_center_y;
+            }
         }
 
         // If the window is not active, deactivate the ingame cursor if it's active
