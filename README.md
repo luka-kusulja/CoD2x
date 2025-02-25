@@ -87,8 +87,11 @@ It focuses on fixing bugs and adding new features to the game.
     - 📄 CoD2x Installation and uninstallation manual.txt
     - 📄 cod2_lnxded    (official 1.3 game version)
 4. Run the game with LD_PRELOAD, for example:
-`LD_PRELOAD=libCoD2x.so ./cod2_lnxded +exec server.cfg`
-5. Auto-update is enabled by default. Make sure to enable UDP port 20720. If you want to disable auto-update, set `sv_update "0"` or disable UDP port 20720. On server start, the server will check for the latest version of CoD2x and download it if available. File libCoD2x.so will be replaced with the latest version. Process restart is needed to apply the update. 
+    - `LD_PRELOAD=libCoD2x.so ./cod2_lnxded +exec server.cfg`
+    - 🛈 Its not common that server providers support adding this, only server administrators can do that.
+5. Update chmod for the libCoD2x.so file to be executable:
+    - `chmod +x libCoD2x.so`
+6. Auto-update is enabled by default. Make sure to enable UDP port 20720. If you want to disable auto-update, set `sv_update "0"` or disable UDP port 20720. On server start, the server will check for the latest version of CoD2x and download it if available. File libCoD2x.so will be replaced with the latest version. Process restart is needed to apply the update. 
 
 
 
