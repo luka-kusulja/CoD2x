@@ -105,6 +105,21 @@ enum clientState_e{
 	CLIENT_STATE_ACTIVE,          // game views should be displayed       
 };
 
+inline const char* get_client_state_name(int state) {
+    switch (state) {
+        case CLIENT_STATE_DISCONNECTED: return "DISCONNECTED";
+        case CLIENT_STATE_CINEMATIC: return "CINEMATIC";
+        case CLIENT_STATE_AUTHORIZING: return "AUTHORIZING";
+        case CLIENT_STATE_CONNECTING: return "CONNECTING";
+        case CLIENT_STATE_CHALLENGING: return "CHALLENGING";
+        case CLIENT_STATE_CONNECTED: return "CONNECTED";
+        case CLIENT_STATE_LOADING: return "LOADING";
+        case CLIENT_STATE_PRIMED: return "PRIMED";
+        case CLIENT_STATE_ACTIVE: return "ACTIVE";
+        default: return "UNKNOWN";
+    }
+}
+
 
 /**
  * Show error with level, for example ERR_LEVEL

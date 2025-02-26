@@ -27,14 +27,22 @@ void game_hook_init_cvars() {
 // Called every frame, before the original function
 void game_hook_frame() {
 
-    bool justDisconnected = clientState != clientStateLast && clientState == CLIENT_STATE_DISCONNECTED;
+    if (clientState != clientStateLast) {
+        Com_DPrintf("Client state changed from %d:%s to %d:%s\n", clientStateLast, get_client_state_name(clientStateLast), clientState, get_client_state_name(clientState));
+    }
 
     // Cvar is not defined yet or player disconnected from the server
     if (g_cod2x != NULL) {
 
         // Player disconnected from the server, reset the cvar
-        if (g_cod2x->value.integer > 0 && justDisconnected) {
+        if (g_cod2x->value.integer > 0 && clientState != clientStateLast && clientState <= CLIENT_STATE_CONNECTED) {
             Dvar_SetInt(g_cod2x, 0);
+            g_cod2x->modified = true;
+        }
+
+        // Player just connected to 1.3 server (g_cod2x == 0)
+        // Set the cvar modified so the text is printed in the console again below
+        if (g_cod2x->value.integer == 0 && clientState != clientStateLast && clientState == CLIENT_STATE_ACTIVE && clientStateLast <= CLIENT_STATE_PRIMED) {
             g_cod2x->modified = true;
         }
 
@@ -42,7 +50,15 @@ void game_hook_frame() {
         if (g_cod2x->modified) {
             g_cod2x->modified = false;
 
-            Com_Printf("CoD2x version on server: %d\n", g_cod2x->value.integer);
+            Com_Printf("---------------------------------------------------------------------------------\n");
+            if (g_cod2x->value.integer == 0) {
+                Com_Printf("CoD2x: Changes turned off, using legacy CoD2 1.3\n");
+            } else {
+                Com_Printf("CoD2x: Changes turned on, using changes according to server version 1.4.%d.x\n", g_cod2x->value.integer);          
+                if (g_cod2x->value.integer != APP_VERSION_PROTOCOL)
+                    Com_Printf("CoD2x: ^3Server is running older version 1.4.%d.x, your version is %s\n", g_cod2x->value.integer, APP_VERSION);
+            }
+            Com_Printf("---------------------------------------------------------------------------------\n");
 
             // Fix animation time from crouch to stand
             common_fix_clip_bug(g_cod2x->value.integer >= 1);
@@ -51,7 +67,7 @@ void game_hook_frame() {
 
     // Enable cheats when player disconnects from the server
     // It would allow to play demos without the need to do devmap
-    if (justDisconnected) {
+    if (clientState != clientStateLast && clientState == CLIENT_STATE_DISCONNECTED) {
         Dvar_SetBool(sv_cheats, true);
     }
 
