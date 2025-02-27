@@ -219,11 +219,13 @@ void Mouse_ProcessMovement() {
         if (mouse_ingameMouseActive == 0) {
 
             // Cursor is outside the inner area of the window
-            bool cursorIsOutside = 
-                cursorRelativePoint.x <= clientRect.left || cursorRelativePoint.x >= clientRect.right || 
-                cursorRelativePoint.y <= clientRect.top || cursorRelativePoint.y >= clientRect.bottom;
-            if (cursorIsOutside)
-                return;
+            if (r_fullscreen->value.boolean == false) {
+                bool cursorIsOutside = 
+                    cursorRelativePoint.x <= clientRect.left || cursorRelativePoint.x >= clientRect.right || 
+                    cursorRelativePoint.y <= clientRect.top || cursorRelativePoint.y >= clientRect.bottom;
+                if (cursorIsOutside)
+                    return;
+            }
 
             Mouse_ActivateIngameCursor();
 
