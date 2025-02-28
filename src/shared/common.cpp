@@ -3,6 +3,7 @@
 
 #if COD2X_WIN32
     #include "../mss32/window.h"
+    #include "../mss32/rinput.h"
     #include "../mss32/fps.h"
     #include "../mss32/game.h"
 #endif
@@ -58,6 +59,8 @@ void __cdecl hook_Com_Init_Dvars() {
 
     #if COD2X_WIN32
         window_hook_init_cvars();
+
+        rinput_hook_init_cvars();
 
         fps_hook_init_cvars();
 
@@ -168,6 +171,7 @@ void common_hook()
 
     #if COD2X_WIN32
         window_hook();
+        rinput_hook();
         fps_hook();
         game_hook();
     #endif

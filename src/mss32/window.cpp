@@ -1,5 +1,6 @@
 #include "window.h"
 #include "shared.h"
+#include "rinput.h"
 
 #include <windows.h>
 #include <stdio.h>
@@ -42,10 +43,6 @@
 #define clientState                 (*((clientState_e*)0x00609fe0))
 
 dvar_t* m_debug;
-dvar_t* m_rinput;
-
-long rinput_x = 0;
-long rinput_y = 0;
 
 int minWidth = 0;
 int minHeight = 0;
@@ -77,40 +74,6 @@ void Mouse_ActivateIngameCursor()
     mouse_center_y = (rect.bottom + rect.top) / 2;
 
 	while (ShowCursor(FALSE) >= 0); // hide system cursor
-}
-
-
-void rinput_register() {
-    RAWINPUTDEVICE rid[1];
-    rid[0].usUsagePage = 0x01;  // Generic desktop controls
-    rid[0].usUsage = 0x02;      // Mouse
-    rid[0].dwFlags = 0;         // Default behavior (foreground capture)
-    rid[0].hwndTarget = win_hwnd;   // Target window for raw input messages
-
-    if (!RegisterRawInputDevices(rid, 1, sizeof(rid[0]))) {
-        Com_Printf("Failed to register raw input device. Error: %lu\n", GetLastError());
-        return;
-    }
-
-    rinput_x = 0;
-    rinput_y = 0;
-
-    Com_Printf("Registered raw input device\n");
-}
-
-void rinput_unregister() {
-    RAWINPUTDEVICE rid[1];
-    rid[0].usUsagePage = 0x01; // Generic Desktop Controls
-    rid[0].usUsage = 0x02;     // Mouse
-    rid[0].dwFlags = RIDEV_REMOVE; // Unregister this device
-    rid[0].hwndTarget = NULL;  // Must be NULL when removing devices
-
-    if (!RegisterRawInputDevices(rid, 1, sizeof(rid[0]))) {
-        Com_Printf("Failed to unregister raw input device. Error: %lu\n", GetLastError());
-        return;
-    }
-
-    Com_Printf("Unregistered raw input device\n");
 }
 
 
@@ -239,8 +202,10 @@ void Mouse_ProcessMovement() {
         int32_t y_offset = (cursorPoint.y - mouse_center_y);
 
         // When raw input is enabled, use the raw input offsets
-        if (m_rinput->value.boolean)
+        if (rinput_is_enabled())
         {
+            long rinput_x, rinput_y;
+            rinput_get_last_offset(&rinput_x, &rinput_y);
             x_offset = rinput_x;
             y_offset = rinput_y;
         }
@@ -248,7 +213,7 @@ void Mouse_ProcessMovement() {
         SetCursorPos(mouse_center_x, mouse_center_y);
 
         if (m_debug->value.boolean && (x_offset != 0 || y_offset != 0))
-            Com_Printf("Mouse move offset: (%d %d) (source: %s)\n", x_offset, y_offset, m_rinput->value.boolean ? "rinput" : "system");
+            Com_Printf("Mouse move offset: (%d %d) (source: %s)\n", x_offset, y_offset, rinput_is_enabled() ? "rinput" : "system");
 
         if (in_menu) {
 
@@ -277,24 +242,12 @@ void Mouse_ProcessMovement() {
 // 00464b30
 void Mouse_Loop()
 {
-    // If the raw input cvar has been modified
-    if (m_rinput->modified) {
-        m_rinput->modified = false;
-
-        if (m_rinput->value.boolean) {
-            rinput_register();
-        } else {
-            rinput_unregister();
-        }
-    }
+    rinput_mouse_loop();
 
     if (mouse_isEnabled)
     {
         Mouse_ProcessMovement();
     }
-
-    rinput_x = 0;
-    rinput_y = 0;
 }
 
 
@@ -309,9 +262,6 @@ LRESULT CALLBACK CoD2WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
         case WM_CREATE: {
             win_hwnd = hwnd;
             win_wheelRool = RegisterWindowMessageA("MSWHEEL_ROLLMSG");
-
-            if (m_rinput->value.boolean)
-                rinput_register();
 
             callOriginal = false;        
             break;
@@ -419,30 +369,8 @@ LRESULT CALLBACK CoD2WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
             break;
         }
 
-        // Called when raw input is received
         case WM_INPUT: {
-            UINT dwSize;
-            GetRawInputData((HRAWINPUT)lParam, RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER));
-
-            LPBYTE lpb = (LPBYTE)malloc(dwSize);
-            if (!lpb) break;
-
-            if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, lpb, &dwSize, sizeof(RAWINPUTHEADER)) == dwSize) {
-                RAWINPUT* raw = (RAWINPUT*)lpb;
-
-                if (raw->header.dwType == RIM_TYPEMOUSE) {
-                    // Extract raw mouse data
-                    int deltaX = raw->data.mouse.lLastX;
-                    int deltaY = raw->data.mouse.lLastY;
-
-                    // Offsets for the mouse movement in loop function
-                    rinput_x += deltaX;
-                    rinput_y += deltaY;
-                }
-            }
-
-            free(lpb);
-            break;
+            Com_Error(ERR_DROP, "WM_INPUT message received in main window procedure!\n");
         }
 
     }
@@ -588,7 +516,6 @@ void window_hook_init_cvars() {
     r_autopriority = Dvar_RegisterBool("r_autopriority", false, (enum dvarFlags_e)(DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET));
 
     m_debug = Dvar_RegisterBool("m_debug", false, (enum dvarFlags_e)(DVAR_CHANGEABLE_RESET));
-    m_rinput = Dvar_RegisterBool("m_rinput", false, (enum dvarFlags_e)(DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET));
 }
 
 // Called before the game is started
