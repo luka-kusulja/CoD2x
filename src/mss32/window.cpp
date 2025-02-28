@@ -263,6 +263,8 @@ LRESULT CALLBACK CoD2WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
             win_hwnd = hwnd;
             win_wheelRool = RegisterWindowMessageA("MSWHEEL_ROLLMSG");
 
+            rinput_on_main_window_create();
+
             callOriginal = false;        
             break;
         }
@@ -370,7 +372,8 @@ LRESULT CALLBACK CoD2WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
         }
 
         case WM_INPUT: {
-            Com_Error(ERR_DROP, "WM_INPUT message received in main window procedure!\n");
+            rinput_wm_input(lParam);
+            break;
         }
 
     }

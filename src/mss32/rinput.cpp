@@ -7,7 +7,6 @@ dvar_t*             m_rinput_hz;
 dvar_t*             m_rinput_hz_max;
 
 CRITICAL_SECTION    rinput_lock;
-bool                rinput_registered = 0;
 long                rinput_x = 0;
 long                rinput_y = 0;
 long                rinput_cnt = 0;
@@ -25,6 +24,31 @@ long                rinput_totalInputCount = 0;  // Rolling sum of last 10 updat
 long                rinput_lastTotalCount = 0;  // Tracks total input messages seen so far
 LONGLONG            rinput_frequency = 0;
 
+#define win_hwnd    (*((HWND*)0x00d7713c))
+
+
+
+void rinput_wm_input(LPARAM lParam) {
+    UINT uiSize = 40;
+    static unsigned char lpb[40];
+
+    if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, lpb, &uiSize, sizeof(RAWINPUTHEADER)) != (UINT)-1) {
+        RAWINPUT* raw = (RAWINPUT*)lpb;
+
+        if (raw->header.dwType == RIM_TYPEMOUSE) {
+            // Extract raw mouse data
+            int deltaX = raw->data.mouse.lLastX;
+            int deltaY = raw->data.mouse.lLastY;
+
+            // Offsets for the mouse movement in loop function
+            EnterCriticalSection(&rinput_lock);          
+            rinput_x += deltaX;
+            rinput_y += deltaY;
+            rinput_cnt++;      
+            LeaveCriticalSection(&rinput_lock);
+        }
+    }
+}
 
 
 LRESULT __stdcall rinput_window_proc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -32,27 +56,7 @@ LRESULT __stdcall rinput_window_proc(HWND hWnd, UINT message, WPARAM wParam, LPA
 	switch (message)
 	{
 		case WM_INPUT: {
-
-			UINT uiSize = 40;
-			static unsigned char lpb[40];
-
-            if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, lpb, &uiSize, sizeof(RAWINPUTHEADER)) != (UINT)-1) {
-                RAWINPUT* raw = (RAWINPUT*)lpb;
-
-                if (raw->header.dwType == RIM_TYPEMOUSE) {
-                    // Extract raw mouse data
-                    int deltaX = raw->data.mouse.lLastX;
-                    int deltaY = raw->data.mouse.lLastY;
-
-                    // Offsets for the mouse movement in loop function
-                    EnterCriticalSection(&rinput_lock);          
-                    rinput_x += deltaX;
-                    rinput_y += deltaY;
-                    rinput_cnt++;      
-                    LeaveCriticalSection(&rinput_lock);
-                }
-            }
-
+            rinput_wm_input(lParam);
 			break;
 		}
 		default: return DefWindowProc(hWnd, message, wParam, lParam);
@@ -124,7 +128,7 @@ DWORD WINAPI rinput_thread(LPVOID lpParam) {
 
 void rinput_register() {
 
-    if (rinput_registered) {
+    if (m_rinput->value.integer == m_rinput->latchedValue.integer && m_rinput->value.integer > 0) {
         return;
     }
 
@@ -140,52 +144,98 @@ void rinput_register() {
         return;
     }
 
-    InterlockedExchange(&rinput_activated, 0);
-    InterlockedExchangePointer(&rinput_error, NULL);
-    rinput_thread_handle = CreateThread(NULL, 0, rinput_thread, NULL, 0, &rinput_thread_id);
+    // Method 1: Dedicated thread for raw input messages
+    if (m_rinput->latchedValue.integer == 1) {
+        InterlockedExchange(&rinput_activated, 0);
+        InterlockedExchangePointer(&rinput_error, NULL);
+        rinput_thread_handle = CreateThread(NULL, 0, rinput_thread, NULL, 0, &rinput_thread_id);
 
-    // Wait for thread to activate, thread safely
-    while (true) {
-        Sleep(1);
-        LPVOID error = InterlockedCompareExchangePointer(&rinput_error, NULL, NULL);
-        if (error) {
-            Dvar_SetBool(m_rinput, false);
-            Com_Error(ERR_DROP, (const char*)error);
+        // Wait for thread to activate, thread safely
+        while (true) {
+            Sleep(1);
+            LPVOID error = InterlockedCompareExchangePointer(&rinput_error, NULL, NULL);
+            if (error) {
+                Dvar_SetBool(m_rinput, false);
+                Com_Error(ERR_DROP, (const char*)error);
+                return;
+            }
+            if (InterlockedCompareExchange(&rinput_activated, 0, 0) == 1) {
+                break;
+            }
+        }
+
+        Com_Printf("Registered raw input device (dedicated thread method)\n");
+
+
+    // Method 2: Directly in the main game window
+    } else if (m_rinput->latchedValue.integer == 2) {
+
+        // Register raw input for the game window
+        RAWINPUTDEVICE rid;
+        rid.usUsagePage = 0x01;  // Generic desktop controls
+        rid.usUsage = 0x02;      // Mouse
+        rid.dwFlags = 0;         // Default behavior (foreground capture)
+        rid.hwndTarget = win_hwnd;
+
+        if (!RegisterRawInputDevices(&rid, 1, sizeof(rid))) {
+            Com_Error(ERR_DROP, "Failed to register raw input device.");
             return;
         }
-        if (InterlockedCompareExchange(&rinput_activated, 0, 0) == 1) {
-            break;
-        }
+
+        Com_Printf("Registered raw input device (main window method)\n");
     }
-
-    Com_Printf("Registered raw input device\n");
-
-    rinput_registered = true;
 }
 
 void rinput_unregister() {
 
-    if (!rinput_registered) {
+    if (m_rinput->value.integer == 0) {
         return;
     }
 
-    // Post a quit message to break the message loop
-    PostMessage(rinput_window_hwnd, WM_QUIT, 0, 0);
+    // Method 1: Dedicated thread for raw input messages
+    if (m_rinput->value.integer == 1) {
+        // Post a quit message to break the message loop
+        PostMessage(rinput_window_hwnd, WM_QUIT, 0, 0);
 
-    // Wait for thread to exit
-    WaitForSingleObject(rinput_thread_handle, INFINITE);
+        // Wait for thread to exit
+        WaitForSingleObject(rinput_thread_handle, INFINITE);
 
-    CloseHandle(rinput_thread_handle);
-    rinput_thread_handle = NULL;
+        CloseHandle(rinput_thread_handle);
+        rinput_thread_handle = NULL;
 
-    Com_Printf("Unregistered raw input device\n");
+        Com_Printf("Unregistered raw input device (dedicated thread method)\n");
 
-    rinput_registered = false;
+
+    // Method 2: Directly in the main game window
+    } else if (m_rinput->value.integer == 2) {
+        
+        // Unregister raw input for the game window
+        RAWINPUTDEVICE rid;
+        rid.usUsagePage = 0x01;  // Generic desktop controls
+        rid.usUsage = 0x02;      // Mouse
+        rid.dwFlags = RIDEV_REMOVE;
+        rid.hwndTarget = win_hwnd;
+
+        RegisterRawInputDevices(&rid, 1, sizeof(rid));
+
+        Com_Printf("Unregistered raw input device (main window method)\n");
+    }
+}
+
+
+void rinput_on_main_window_create() {
+    // In method 2 the main window is tight to the raw input
+    // Since the HWND changed (due to vid_restart) the raw input was automatically unregistered
+    // We need to register that again
+    if (m_rinput->value.integer == 2) {
+        m_rinput->latchedValue.integer = 2;
+        m_rinput->value.integer = 0;
+    }
 }
 
 
 bool rinput_is_enabled() {
-    return m_rinput->value.boolean;
+    return m_rinput->value.integer > 0;
 }
 
 void rinput_get_last_offset(long* x, long* y) {
@@ -207,8 +257,7 @@ void rinput_reset_offset() {
 
 void rinput_mouse_loop() {
     // If the raw input cvar has been modified
-    if (m_rinput->modified) {
-        m_rinput->modified = false;
+    if (m_rinput->latchedValue.integer != m_rinput->value.integer) {
 
         Dvar_SetInt(m_rinput_hz, 0);
         Dvar_SetInt(m_rinput_hz_max, 0);
@@ -216,12 +265,14 @@ void rinput_mouse_loop() {
         // Unregister first
         rinput_unregister();
 
-        if (m_rinput->value.boolean) {
+        if (m_rinput->latchedValue.integer > 0) {
             rinput_register();
         }
+
+        Dvar_SetInt(m_rinput, m_rinput->latchedValue.integer);
     }
 
-    if (m_rinput->value.boolean) {
+    if (m_rinput->value.integer > 0) {
 
         static LONGLONG lastUpdateTime = 0;
 
@@ -272,7 +323,7 @@ void rinput_mouse_loop() {
 
 // Called when the game initializes cvars (Com_Init)
 void rinput_hook_init_cvars() {
-    m_rinput = Dvar_RegisterBool("m_rinput", false, (enum dvarFlags_e)(DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET));
+    m_rinput = Dvar_RegisterInt("m_rinput", 0, 0, 2, (enum dvarFlags_e)(DVAR_ARCHIVE | DVAR_LATCH | DVAR_CHANGEABLE_RESET));
 
     m_rinput_hz = Dvar_RegisterInt("m_rinput_hz", 0, 0, INT32_MAX, (enum dvarFlags_e)(DVAR_ROM | DVAR_CHANGEABLE_RESET));
     m_rinput_hz_max = Dvar_RegisterInt("m_rinput_hz_max", 0, 0, INT32_MAX, (enum dvarFlags_e)(DVAR_ROM | DVAR_CHANGEABLE_RESET));
