@@ -99,6 +99,12 @@ bool hook_patchExecutable() {
     patch_jump(0x0053bc40, (unsigned int)&updater_dialogConfirmed);
 
 
+    // Improve error message when too many dvars are registered
+    patch_string_ptr(0x00437e0f + 1, "Error while registering cvar '%s'.\nUnable to create more than %i dvars.\n\n"
+        "There is too many cvars in your config!\nClean your config from unused dvars and try again.\n\n"
+        "Normal config should contains no more than 400 lines of dvars. Compare your config with a default one to find the differences.");
+
+
     // Hook shared functions for both Windows and Linux
     common_hook();
 
