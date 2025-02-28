@@ -1,8 +1,50 @@
-# ==========================
+# ========================================================================================================
+# Version
+# ========================================================================================================
+# Uses a.b.c.d versioning style using this sequence:
+#      a - major       - always 1
+#      b - minor       - always 4
+#      c - protocol    - CoD2x breaking change that affects both client and server
+#      d - patch       - CoD2x non-breaking change to client or server that is backward compatible
+# Sequence:
+#      1.3
+#      1.4.1.1         - first release
+#      1.4.1.2         - patch to client or server, backward compatible
+#      1.4.1.3-test.1  - test version
+#      1.4.1.3-test.2
+#      1.4.1.3
+#      1.4.2.1         - new protocol, breaking change, old client can not connect new server
+#      1.4.2.2
+#      ...
+
+# CoD2 version, increased from 1.3 to 1.4
+VERSION_MAJOR = 1
+VERSION_MINOR = 4
+
+# CoD2x protocol version
+# Should be increased only if the changed functionalities that affect both server and client
+# Newer client can connect older server
+# Older client can not connect newer server
+VERSION_PROTOCOL = 2
+
+# CoD2x patch version
+# Should be increased when new version is released and the changes are backward compatible
+VERSION_PATCH = 2
+
+# CoD2x test version
+# Should be increased when new version is released and the changes are backward compatible
+VERSION_TEST = -test.1
+VERSION_IS_TEST = 1
+
+# Full version string
+# Example "1.4.1.1"  or  "1.4.1.1-test.1"
+VERSION = $(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PROTOCOL).$(VERSION_PATCH)$(VERSION_TEST)
+VERSION_COMMA = $(VERSION_MAJOR),$(VERSION_MINOR),$(VERSION_PROTOCOL),$(VERSION_PATCH)
+
+
+# ========================================================================================================
 # Directories and Files
-# ==========================
-VERSION = 1.4.2.1
-VERSION_COMMA = 1,4,2,1
+# ========================================================================================================
 
 # Output directories
 WIN_BIN_DIR = bin/windows
@@ -51,9 +93,10 @@ WIN_MSS32_OBJECTS = $(patsubst $(WIN_MSS32_SRC_DIR)/%.cpp, $(WIN_MSS32_OBJ_DIR)/
 LINUX_OBJECTS = $(patsubst $(LINUX_SRC_DIR)/%.cpp, $(LINUX_OBJ_DIR)/%.o, $(LINUX_C_SOURCES)) \
 				$(SHARED_LINUX_OBJECTS)
 
-# ==========================
+
+# ========================================================================================================
 # Compilation Settings
-# ==========================
+# ========================================================================================================
 
 # Compilation flags
 CFLAGS = -Wall -Wextra -Wno-unused-parameter -g -m32 -lstdc++ -O0
@@ -84,84 +127,162 @@ LINUX_LIBS = -ldl -pthread
 # -fPIC: Generate position-independent code
 # -shared: Create a shared library (SO)
 
-# ==========================
+# ========================================================================================================
 # Build Targets and Rules
-# ==========================
+# ========================================================================================================
 
 # Default target
 all: build_mss32_win build_cod2x_linux
 	@echo "Build completed for all targets."
 
 
+
+$(SHARED_SRC_DIR)/version.h: makefile
+	@echo Generating version.h...
+
+	@echo #define APP_VERSION_MAJOR $(VERSION_MAJOR) 			>  $(SHARED_SRC_DIR)\version.h
+	@echo #define APP_VERSION_MINOR $(VERSION_MINOR) 			>> $(SHARED_SRC_DIR)\version.h
+	@echo #define APP_VERSION_PROTOCOL $(VERSION_PROTOCOL) 	>> $(SHARED_SRC_DIR)\version.h
+	@echo #define APP_VERSION_PATCH $(VERSION_PATCH) 			>> $(SHARED_SRC_DIR)\version.h
+	@echo #define APP_VERSION_IS_TEST $(VERSION_IS_TEST) 		>> $(SHARED_SRC_DIR)\version.h
+	@echo #define APP_VERSION "$(VERSION)" 					>> $(SHARED_SRC_DIR)\version.h
+	
+	@echo   Done.
+	@echo.
+
+
+
+# ========================================================================================================
+# Windows MSS32
+# ========================================================================================================
+
 # MSS32 Windows target
-build_mss32_win: $(WIN_MSS32_TARGET)
+build_mss32_win: $(SHARED_SRC_DIR)/version.h $(WIN_MSS32_TARGET)
 	@echo "MSS32 (Windows) build complete."
+	@echo.
 
 # Linking with resource file
 $(WIN_MSS32_TARGET): $(WIN_MSS32_OBJECTS) $(WIN_MSS32_OBJ_DIR)/version.res
 	@echo "Linking $@..."
 	$(WIN_CC) $(WIN_LFLAGS) -o $@ $^ $(WIN_LIBS) $(WIN_MSS32_SRC_DIR)/mss32.def
+	@echo   Done.
+	@echo.
 
 # Compile C++ files
 $(WIN_MSS32_OBJ_DIR)/%.o: $(WIN_MSS32_SRC_DIR)/%.cpp | $(WIN_MSS32_OBJ_DIR)
 	@echo "Compiling $< for MSS32 (Windows)..."
 	$(WIN_CC) $(WIN_CFLAGS) -MMD -MP -c -o $@ $<
+	@echo   Done.
+	@echo.
 
 # Assemble ASM files
 $(WIN_MSS32_OBJ_DIR)/%.o: $(WIN_MSS32_SRC_DIR)/%.asm | $(WIN_MSS32_OBJ_DIR)
 	@echo "Assembling $< for MSS32 (Windows)..."
 	$(WIN_AS) $(WIN_ASFLAGS) $< -o $@
+	@echo   Done.
+	@echo.
+
+
+# Generate version.rc file if makefile has changed
+$(TMP)/version.rc: makefile
+	@echo Generating version.rc...
+
+	@echo 1 VERSIONINFO                                			>  $(TMP)/version.rc
+	@echo FILEVERSION $(VERSION_COMMA)                			>> $(TMP)/version.rc
+	@echo PRODUCTVERSION $(VERSION_COMMA)             			>> $(TMP)/version.rc
+	@echo BEGIN                                       			>> $(TMP)/version.rc
+	@echo     BLOCK "StringFileInfo"                  			>> $(TMP)/version.rc
+	@echo     BEGIN                                   			>> $(TMP)/version.rc
+	@echo         BLOCK "040904b0"                    			>> $(TMP)/version.rc
+	@echo         BEGIN                               			>> $(TMP)/version.rc
+	@echo             VALUE "ProductName", "CoD2x"    			>> $(TMP)/version.rc
+	@echo             VALUE "ProductVersion", "$(VERSION)" 		>> $(TMP)/version.rc
+	@echo         END                                 			>> $(TMP)/version.rc
+	@echo     END                                     			>> $(TMP)/version.rc
+	@echo     BLOCK "VarFileInfo"                     			>> $(TMP)/version.rc
+	@echo     BEGIN                                   			>> $(TMP)/version.rc
+	@echo         VALUE "Translation", 0x0409, 1200  			>> $(TMP)/version.rc
+	@echo     END                                     			>> $(TMP)/version.rc
+	@echo END                                         			>> $(TMP)/version.rc
+
+	@echo   Done.
+	@echo.
 
 # Compile version.rc into a .res file
-$(WIN_MSS32_OBJ_DIR)/version.res: $(WIN_MSS32_SRC_DIR)/version.rc
-	@echo "Compiling resource file..."
-	windres $(WIN_MSS32_SRC_DIR)/version.rc -D VERSION_COMMA="$(VERSION_COMMA)" -D VERSION_DOT="$(VERSION)" -O coff -o $@
+$(WIN_MSS32_OBJ_DIR)/version.res: $(TMP)/version.rc
+	@echo Compiling version.res...
 
+	windres $(TMP)\version.rc -O coff -o $(WIN_MSS32_OBJ_DIR)\version.res
 
-# CoD2x Linux target
-build_cod2x_linux: $(LINUX_TARGET)
-	@echo "CoD2x (Linux) build complete."
-
-$(LINUX_TARGET): $(LINUX_OBJECTS)
-	@echo "Linking to $@..."
-	$(LINUX_CC) $(LINUX_LFLAGS) -o $@ $^ $(LINUX_LIBS)
-
-$(LINUX_OBJ_DIR)/%.o: $(LINUX_SRC_DIR)/%.cpp | $(LINUX_OBJ_DIR)
-	@echo "Compiling $< for CoD2x (Linux)..."
-	$(LINUX_CC) $(LINUX_CFLAGS) -MMD -MP -c -o $@ $<
-
-
-
-# Compile shared functionality objects for Windows
-$(WIN_MSS32_OBJ_DIR)/shared_%.o: $(SHARED_SRC_DIR)/%.cpp | $(WIN_MSS32_OBJ_DIR)
-	@echo "Compiling $< for shared functionality (Windows)..."
-	$(WIN_CC) $(WIN_CFLAGS) -MMD -MP -c -o $@ $<
-
-# Compile shared functionality objects for Linux
-$(LINUX_OBJ_DIR)/shared_%.o: $(SHARED_SRC_DIR)/%.cpp | $(LINUX_OBJ_DIR)
-	@echo "Compiling $< for shared functionality (Linux)..."
-	$(LINUX_CC) $(LINUX_CFLAGS) -MMD -MP -c -o $@ $<
-
+	@echo   Done.
+	@echo.
 
 
 # Include dependency files
 -include $(WIN_MSS32_OBJ_DIR)/*.d
--include $(LINUX_OBJ_DIR)/*.d
 
-
-# Create directories (Windows)
+# Create directories
 $(WIN_MSS32_OBJ_DIR) $(WIN_BIN_DIR):
 	@if not exist $(subst /,\, $@) mkdir $(subst /,\, $@)
 
-# Create directories (Linux)
+
+
+# ========================================================================================================
+# Linux
+# ========================================================================================================
+
+# CoD2x Linux target
+build_cod2x_linux: $(SHARED_SRC_DIR)/version.h $(LINUX_TARGET)
+	@echo "CoD2x (Linux) build complete."
+	@echo ""
+
+$(LINUX_TARGET): $(LINUX_OBJECTS)
+	@echo "Linking to $@..."
+	$(LINUX_CC) $(LINUX_LFLAGS) -o $@ $^ $(LINUX_LIBS)
+	@echo   Done.
+	@echo ""
+
+$(LINUX_OBJ_DIR)/%.o: $(LINUX_SRC_DIR)/%.cpp | $(LINUX_OBJ_DIR)
+	@echo "Compiling $< for CoD2x (Linux)..."
+	$(LINUX_CC) $(LINUX_CFLAGS) -MMD -MP -c -o $@ $<
+	@echo   Done.
+	@echo ""
+
+
+# Include dependency files
+-include $(LINUX_OBJ_DIR)/*.d
+
+# Create directories
 $(LINUX_OBJ_DIR) $(LINUX_BIN_DIR):
 	@mkdir -p $@
 
 
 
-# ==========================
+# ========================================================================================================
+# Shared for Windows and Linux
+# ========================================================================================================
+
+# Compile shared functionality objects for Windows
+$(WIN_MSS32_OBJ_DIR)/shared_%.o: $(SHARED_SRC_DIR)/%.cpp | $(WIN_MSS32_OBJ_DIR)
+	@echo "Compiling $< for shared functionality (Windows)..."
+	$(WIN_CC) $(WIN_CFLAGS) -MMD -MP -c -o $@ $<
+	@echo   Done.
+	@echo.
+
+# Compile shared functionality objects for Linux
+$(LINUX_OBJ_DIR)/shared_%.o: $(SHARED_SRC_DIR)/%.cpp | $(LINUX_OBJ_DIR)
+	@echo "Compiling $< for shared functionality (Linux)..."
+	$(LINUX_CC) $(LINUX_CFLAGS) -MMD -MP -c -o $@ $<
+	@echo   Done.
+	@echo ""
+
+
+
+
+
+# ========================================================================================================
 # Zip output files for Windows
-# ==========================
+# ========================================================================================================
 
 # Rule to create the zip file
 $(ZIP_WIN_OUTPUT): $(ZIP_WIN_FILES) | $(ZIP_WIN_DIR)
@@ -189,9 +310,9 @@ zip_win_clean:
 
 
 
-# ==========================
+# ========================================================================================================
 # Zip output files for Linux
-# ==========================
+# ========================================================================================================
 
 # Rule to create the Linux zip file
 $(ZIP_LINUX_OUTPUT): $(ZIP_LINUX_FILES) | $(ZIP_LINUX_DIR)
@@ -224,9 +345,9 @@ zip_all: zip_win zip_linux
 
 
 
-# ==========================
+# ========================================================================================================
 # Cleaning Up
-# ==========================
+# ========================================================================================================
 
 clean: zip_win_clean zip_linux_clean
 	@echo "Cleaning up build files..."
@@ -239,8 +360,8 @@ clean: zip_win_clean zip_linux_clean
 	@if exist $(subst /,\, $(WIN_MSS32_OBJ_DIR)/version.res) del /Q $(subst /,\, $(WIN_MSS32_OBJ_DIR)/version.res)
 	@echo "Done."
 
-# ==========================
+# ========================================================================================================
 # Phony Targets
-# ==========================
+# ========================================================================================================
 
 .PHONY: all clean build_mss32_win build_cod2x_linux zip_win zip_win_clean
