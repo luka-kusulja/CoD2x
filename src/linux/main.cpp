@@ -27,8 +27,8 @@ void preload_init() {
     }
     printf("Current process name: %s\n", process_name);
 
-    // Check if the process name is 'cod2_lnxded'
-    if (strcmp(process_name, "cod2_lnxded") != 0) {
+    // Check if the process name starts with 'cod2_lnxded'
+    if (strncmp(process_name, "cod2_lnxded", strlen("cod2_lnxded")) != 0) {
         printf("This library is intended to be used with 'cod2_lnxded' only!\n");
         return;
     }
