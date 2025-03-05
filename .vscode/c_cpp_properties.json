@@ -4,8 +4,7 @@
             "name": "Win32",
             "includePath": [
                 "${workspaceFolder}/tools/mingw/i686-w64-mingw32/include",
-                "${workspaceFolder}/src/mss32",
-                "${workspaceFolder}/tools/linux_include"
+                "${workspaceFolder}/src/mss32"
             ],
             "defines": ["_WIN32=1"],
             "compilerPath": "${workspaceFolder}/tools/mingw/bin/gcc.exe",
@@ -25,7 +24,6 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/tools/mingw/i686-w64-mingw32/include",
                 "${workspaceFolder}/src/mss32",
                 "${workspaceFolder}/tools/linux_include"
             ],
