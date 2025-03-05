@@ -1,17 +1,18 @@
 tools/mingw/**
 obj
 
+# Folders in CoD2 folder
 bin/windows/servercache.dat
 bin/windows/hunkusage.dat
-bin/windows/main/hunkusage.dat
-bin/windows/main/*.iwd
-bin/windows/main/*.log
 bin/windows/*.lnk
-
-# Ignore all folders except for main, miles and pb
 bin/windows/*/
 !bin/windows/main/players
 !bin/windows/miles/
 !bin/windows/pb/
 
+# Files in main folder
+bin/windows/main/hunkusage.dat
+bin/windows/main/*.iwd
+bin/windows/main/*.log
+bin/windows/main/players/default/config_mp.cfg
 
