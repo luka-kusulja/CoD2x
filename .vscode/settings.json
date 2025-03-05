@@ -1,0 +1,25 @@
+{
+    /* CoD2 Windows client - command line arguments */
+    "CoD2x.launch_args_win_client": [
+        "+set net_port 28961",
+        "+set developer 2",
+    ],
+
+    /* CoD2 Windows client+server - command line arguments */
+    "CoD2x.launch_args_win_server": [
+        "+set net_port 28960", 
+        "+set developer 2",
+        "+set sv_packet_info 1",
+        "+devmap mp_toujane"
+    ],
+
+    /* CoD2 Linux server - command line arguments */
+    "CoD2x.launch_args_linux": [
+        "+set net_port 28960",
+        "+set developer 2",
+        "+set sv_packet_info 1",
+        "+exec server",
+        "+devmap mp_toujane",
+    ]
+    
+}
