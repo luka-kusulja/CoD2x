@@ -6,6 +6,7 @@
 void rinput_wm_input(LPARAM lParam);
 void rinput_register();
 void rinput_on_main_window_create();
+void rinput_on_main_window_destory();
 bool rinput_is_enabled();
 void rinput_get_last_offset(long* x, long* y);
 void rinput_reset_offset();

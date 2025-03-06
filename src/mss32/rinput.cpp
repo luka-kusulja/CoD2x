@@ -224,11 +224,16 @@ void rinput_unregister() {
 
 
 void rinput_on_main_window_create() {
+
+}
+
+void rinput_on_main_window_destory() {
     // In method 2 the main window is tight to the raw input
-    // Since the HWND changed (due to vid_restart) the raw input was automatically unregistered
-    // We need to register that again
-    if (m_rinput->value.integer == 2) {
-        m_rinput->latchedValue.integer = 2;
+    // Since the HWND changed (due to vid_restart) the raw input is automatically unregistered
+    // We need to also kill external thread in method 1
+    if (m_rinput->value.integer > 0) {
+        rinput_unregister();
+        m_rinput->latchedValue.integer = m_rinput->value.integer;
         m_rinput->value.integer = 0;
     }
 }

@@ -271,7 +271,11 @@ LRESULT CALLBACK CoD2WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
 
 
         case WM_DESTROY: {
+            
+            rinput_on_main_window_destory();
+            
             win_hwnd = NULL;
+
             callOriginal = false;
             break;
         }
