@@ -148,7 +148,6 @@ $(SHARED_SRC_DIR)/version.h: makefile
 	@echo #define APP_VERSION "$(VERSION)" 					>> $(SHARED_SRC_DIR)\version.h
 	
 	@echo   Done.
-	@echo.
 
 
 
