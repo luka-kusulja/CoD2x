@@ -99,7 +99,14 @@ char** Sys_ListFiles(char* extension, int32_t* numFiles, int32_t wantsubs) {
     // When the game starts for the first time, load only the original IWD files
     // The main folder might contain mix of mods from different servers that might cause "iwd sum mismatch" errors when running the game
     // This will make sure these mods are not loaded at startup, but will be loaded when connecting to the game
-    if (firstTime) {
+    
+    // TODO: turned off untill these errors are fixed:
+    // - not working when started as server on windows
+    // - not working when upper iwd names are used
+    // - ui_joinGametype is set to latest gametype mode, but since mods are not allowed the range is not valid (aldo idk how it worked when mods were deleted manually)
+    // in future version we should support list of allowed iwd names instead of block all
+
+    /*if (firstTime) {
         int writeIndex = 0;
         for (int i = 0; i < *numFiles; i++) {
             //Com_Printf("File: %s\n", result[i]);
@@ -110,7 +117,7 @@ char** Sys_ListFiles(char* extension, int32_t* numFiles, int32_t wantsubs) {
             }
         }
         *numFiles = writeIndex;
-    }
+    }*/
 
     return result;
 }
