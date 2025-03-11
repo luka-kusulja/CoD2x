@@ -3,6 +3,7 @@
 
 #include <windows.h>
 
-LONG WINAPI exception_handler(PEXCEPTION_POINTERS ExceptionInfo);
+bool exception_createMiniDump(EXCEPTION_POINTERS* pExceptionInfo);
+void exception_init();
 
 #endif
