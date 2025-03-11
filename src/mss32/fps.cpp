@@ -1,7 +1,8 @@
 #include "fps.h"
-#include "shared.h"
 
 #include <windows.h>
+
+#include "shared.h"
 
 
 #define com_maxFps                    (*((dvar_t**)0x00c28b10))
@@ -12,16 +13,16 @@ dvar_t* com_maxFps_limit;
 int clientStateLast = 0;
 
 
-// Called when the game initializes cvars (Com_Init)
-void fps_hook_init_cvars() {
+/** Called only once on game start after common inicialization. Used to initialize variables, cvars, etc. */
+void fps_init() {
     com_maxFps_limit = Dvar_RegisterBool("com_maxfps_limit", false, (enum dvarFlags_e)(DVAR_NOWRITE | DVAR_CHANGEABLE_RESET));
 
     clientStateLast = clientState;
 }
 
 
-// Called every frame, before the original function
-void fps_hook_frame() {
+/** Called every frame on frame start. */
+void fps_frame() {
     if (com_maxFps_limit->modified) {
 
         // If demo is playing, disable the forced FPS
@@ -58,7 +59,7 @@ void fps_hook_frame() {
     }
 }
 
-// Called before the game is started
-void fps_hook() {
+/** Called before the entry point is called. Used to patch the memory. */
+void fps_patch() {
 
 }

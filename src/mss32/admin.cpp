@@ -1,7 +1,9 @@
 #include "admin.h"
-#include "shared.h"
+
 #include <windows.h>
 #include <stdio.h>
+
+#include "shared.h"
 
 /**
  * Check if the current process is running with elevated privileges.

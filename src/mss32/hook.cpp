@@ -1,15 +1,19 @@
 #include "hook.h"
-#include "shared.h"
-#include "mss32_original.h"
-#include "exception.h"
-#include "updater.h"
-#include "admin.h"
-#include "window.h"
-#include "../shared/common.h"
 
 #include <windows.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "shared.h"
+#include "exception.h"
+#include "freeze.h"
+#include "window.h"
+#include "rinput.h"
+#include "fps.h"
+#include "game.h"
+#include "updater.h"
+#include "../shared/common.h"
+#include "../shared/server.h"
 
 
 HMODULE hModule;
@@ -24,18 +28,12 @@ int __cdecl hook_gfxDll() {
     // Call the original function
 	int ret = ((int (__cdecl *)())0x00464e80)();
 
-    //MessageBox(NULL, "GfxLoadDll called!", "Info", MB_OK | MB_ICONINFORMATION);
-
     // Get address of gfx_d3d_mp_x86_s.dll module stored at 0x00d53e80
-    HMODULE gfx_module = *(HMODULE*)0x00d53e80;
-
-    if (gfx_module == NULL) {
+    gfx_module_addr = (unsigned int)(*(HMODULE*)0x00d53e80);
+    if (gfx_module_addr == 0) {
         SHOW_ERROR("Failed to read module handle of gfx_d3d_mp_x86_s.dll.");
         ExitProcess(EXIT_FAILURE);
     }
-
-    // Get the base address of the module as integer
-    gfx_module_addr = (unsigned int)gfx_module;
 
     ///////////////////////////////////////////////////////////////////
     // Patch gfx_d3d_mp_x86_s.dll
@@ -47,12 +45,48 @@ int __cdecl hook_gfxDll() {
 }
 
 
+/**
+ * Com_Init
+ * Is called in main function when the game is started. Is called only once on game start.
+ */
+void __cdecl hook_Com_Init(char* cmdline) {
+
+    exception_init();
+    freeze_init();
+    window_init();
+    rinput_init();
+    fps_init();
+    game_init();
+    server_init();
+
+    // Call the original function
+	((void (__cdecl *)(char*))0x00434460)(cmdline);
+
+    common_init();
+}
+
+
+/**
+ * Com_Frame
+ * Is called in the main loop every frame.
+ */
+void __cdecl hook_Com_Frame() {
+
+    freeze_frame();
+    fps_frame();
+    game_frame();
+
+    // Call the original function
+	((void (__cdecl *)())0x00434f70)();
+}
+
+
 
 
 /**
  * Patch the CoD2MP_s.exe executable
  */
-bool hook_patchExecutable() {
+bool hook_patch() {
     hModule = GetModuleHandle(NULL);
     if (hModule == NULL) {
         SHOW_ERROR("Failed to get module handle of current process.");
@@ -63,10 +97,26 @@ bool hook_patchExecutable() {
     // Patch CoD2MP_s.exe
     ///////////////////////////////////////////////////////////////////
 
+    // Patch Com_Init
+    patch_call(0x00434a66, (unsigned int)hook_Com_Init);
+    // Patch Com_Frame
+    patch_call(0x00435282, (unsigned int)hook_Com_Frame);
     // Patch function that loads gfx_d3d_mp_x86_s.dll
     patch_call(0x004102b5, (unsigned int)hook_gfxDll);
 
+    // Patch client side
+    window_patch();
+    rinput_patch();
+    fps_patch();
+    game_patch();
+    updater_patch();
 
+    // Patch server side
+    common_patch();
+    server_patch();
+
+
+    
     // Patch black screen / long loading on game startup
     // Caused by Windows Mixer loading
     // For some reason function mixerGetLineInfoA() returns a lot of connections, causing it to loop for a long time
@@ -91,138 +141,10 @@ bool hook_patchExecutable() {
     patch_string_ptr(0x004064cb + 1, "%s: %s> ");
 
 
-    // Hook function that was called on startup to send request to update server
-    patch_call(0x0041162f, (unsigned int)&updater_sendRequest); 
-    // Hook function that was called when update UDP packet was received from update server
-    patch_call(0x0040ef9c, (unsigned int)&updater_updatePacketResponse);
-    // Hook function was was called when user confirm the update dialog (it previously open url)
-    patch_jump(0x0053bc40, (unsigned int)&updater_dialogConfirmed);
-
-
     // Improve error message when too many dvars are registered
     patch_string_ptr(0x00437e0f + 1, "Error while registering cvar '%s'.\nUnable to create more than %i dvars.\n\n"
         "There is too many cvars in your config!\nClean your config from unused dvars and try again.\n\n"
         "Normal config should contains no more than 400 lines of dvars. Compare your config with a default one to find the differences.");
 
-
-    // Hook shared functions for both Windows and Linux
-    common_hook();
-
-
-    //MessageBox(NULL, "Memory patched successfully!", "Info", MB_OK | MB_ICONINFORMATION);
     return TRUE;
 }
-
-
-
-/**
- * Load the CoD2x patches
- */
-bool hook_patch() {  
-    bool ok = FALSE;
-
-    // Show warning message
-    if (APP_VERSION_IS_TEST) {
-        MessageBoxA(NULL, 
-            "You successfully installed CoD2x " APP_VERSION ".\n\n"
-            "Note that this is a test version, we recommend you to uninstall it after trying it!", "CoD2x warning", MB_OK | MB_ICONINFORMATION);
-    }
-
-    // Check if the user is an admin
-    ok = admin_check();
-    if (!ok) return FALSE;
-
-    // Patch the game
-    ok = hook_patchExecutable(); 
-    if (!ok) return FALSE;
-
-    return TRUE;
-}
-
-
-
-// Define a buffer to save the original bytes of the entry point
-BYTE originalBytes[5];
-void* originalEntryPoint = NULL;
-
-/**
- * New entry point for the our DLL.
- * This function is called when the application is started.
- * It gets called by the JMP instruction at the original entry point.
- */
-void __cdecl hook_newEntryPoint() {
-    
-    PVOID handler = AddVectoredExceptionHandler(1, exception_handler);
-
-    // Restore the original bytes at the original entry point
-    patch_copy((unsigned int)originalEntryPoint, originalBytes, sizeof(originalBytes));
-
-    // Run our code
-    bool ok = hook_patch();
-    if (!ok) {
-        ExitProcess(EXIT_FAILURE);
-        return;
-    }
-
-    RemoveVectoredExceptionHandler(handler);
-
-    // Jump back to the original entry point
-    ((void (__cdecl *)(void))originalEntryPoint)();
-}
-
-
-/**
- * Hook the application's entry point
- */
-bool hook_patchEntryPoint() {
-    // Get the base address of the application
-    HMODULE hModule = GetModuleHandle(NULL);
-    if (!hModule) {
-        SHOW_ERROR_WITH_LAST_ERROR("Failed to get application base address.");
-        return FALSE; 
-    }
-
-    // Load the original mss32.dll functions
-    bool ok = mss32_load();
-    if (!ok) return FALSE;
-
-    // Check if process is SinglePlayer, if it is, exit
-    char processName[MAX_PATH];
-    GetModuleFileNameA(hModule, processName, MAX_PATH);
-    if (strstr(processName, "CoD2SP_s.exe") != NULL) {
-        return TRUE;
-    }
-
-    // Check if this is CoD2MP version 1.3
-    char* cod2 = (char*)0x0059b6c0;
-    if (strcmp(cod2, "pc_1.3_1_1") != 0) {
-        MessageBoxA(NULL, 
-            "CoD2x " APP_VERSION " is not installed correctly.\n\n"
-            "You have to install patch 1.3 before installing CoD2x!", "CoD2x error", MB_OK | MB_ICONERROR);
-        return FALSE;
-    }
-
-    originalEntryPoint = (void*)0x0057db54; // Entry point of CoD2MP_s.exe
-
-    // Save the original bytes at the entry point
-    memcpy(originalBytes, originalEntryPoint, sizeof(originalBytes));
-
-    // Patch the entry point with a jump to our new entry point
-    patch_jump((unsigned int)originalEntryPoint, (unsigned int)&hook_newEntryPoint);
-
-    return TRUE;
-}
-
-
-
-void hook_load() {
-
-    // Hook the application's entry point
-    bool ok = hook_patchEntryPoint();
-
-    if (!ok) {
-        ExitProcess(EXIT_FAILURE);
-    }
-
-}
-

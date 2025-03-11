@@ -1,15 +1,9 @@
 #include "exception.h"
+
 #include <windows.h>
 #include <stdio.h>
 
-
-/*
- * Exception handler for catching exceptions.
- */
-LONG WINAPI exception_handler(PEXCEPTION_POINTERS ExceptionInfo) {
-    char message[1024];
-    DWORD exceptionCode = ExceptionInfo->ExceptionRecord->ExceptionCode;
-    PVOID exceptionAddress = ExceptionInfo->ExceptionRecord->ExceptionAddress;
+#include "shared.h"
     const char *exceptionName;
 
     // Determine the exception name based on the exception code

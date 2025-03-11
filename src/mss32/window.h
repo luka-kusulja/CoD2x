@@ -4,7 +4,7 @@
 #include <windows.h>
 
 void window_hook_rendered();
-void window_hook_init_cvars();
-void window_hook();
+void window_init();
+void window_patch();
 
 #endif

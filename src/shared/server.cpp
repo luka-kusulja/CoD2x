@@ -148,8 +148,18 @@ netaddr_s * custom_SV_MasterAddress(void)
 
 
 // Called after all is initialized on game start
-void server_hook_init()
+void server_init()
 {
+    for (int i = 0; i <= 1; i++)
+    {
+        dvarFlags_e flags = i == 0 ? 
+            (dvarFlags_e)(DVAR_LATCH | DVAR_CHANGEABLE_RESET) : // allow the value to be changed via cmd when starting the game
+            (dvarFlags_e)(DVAR_ROM | DVAR_CHANGEABLE_RESET);    // then make it read-only to avoid changes
+
+        sv_masterServer = Dvar_RegisterString("sv_masterServer", "cod2master.activision.com", flags);
+        sv_masterPort = Dvar_RegisterInt("sv_masterPort", 20710, 0, 65535, flags);
+    }
+
     #if COD2X_WIN32
         // After the cvars are loaded, change the master server address
         patch_string_ptr(0x004b3fa5 + 1, sv_masterServer->value.string);
@@ -161,28 +171,12 @@ void server_hook_init()
     #endif
 }
 
-// Called when common cvars are initialized on game start
-void server_hook_init_cvars()
-{
-    for (int i = 0; i <= 1; i++)
-    {
-        dvarFlags_e flags = i == 0 ? 
-            (dvarFlags_e)(DVAR_LATCH | DVAR_CHANGEABLE_RESET) : // allow the value to be changed via cmd when starting the game
-            (dvarFlags_e)(DVAR_ROM | DVAR_CHANGEABLE_RESET);    // then make it read-only to avoid changes
-
-        sv_masterServer = Dvar_RegisterString("sv_masterServer", "cod2master.activision.com", flags);
-        sv_masterPort = Dvar_RegisterInt("sv_masterPort", 20710, 0, 65535, flags);
-    }
-}
-
-
-
 
 
 
 // Server side hooks
 // The hooked functions are the same for both Windows and Linux
-void server_hook()
+void server_patch()
 {
     // Patch the protocol version check - now its being done in SV_DirectConnect
     patch_byte(ADDR(0x00453ce3, 0x0808e34d), 0xeb); // from '7467 je' to 'eb67 jmp'

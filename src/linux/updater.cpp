@@ -1,5 +1,4 @@
-#include "shared.h"
-#include "../shared/common.h"
+#include "updater.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,6 +7,10 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <time.h>
+
+#include "shared.h"
+#include "../shared/common.h"
+
 
 struct netaddr_s updater_address;
 
@@ -124,10 +127,6 @@ void updater_updatePacketResponse(struct netaddr_s addr)
 }
 
 
-/**
- * Com_Frame
- * Is called in the main loop every frame.
- */
 void __cdecl hook_SV_ConnectionlessPacket(enum netadrtype_e type, int32_t ip, int32_t port, int32_t ipx1, int32_t ipx2, void* msg) {
 
     // Call the original function
@@ -148,22 +147,8 @@ void __cdecl hook_SV_ConnectionlessPacket(enum netadrtype_e type, int32_t ip, in
     }
 }
 
-// Is called in main function when the game is started. Is called only once on game start.
-void updater_hook_Com_Init() {
-
-    // Send the request to the Auto-Update server
-    if (sv_update->value.boolean) {
-        updater_sendRequest();
-    }
-}
-
-
-/**
- * Com_Init_Dvars
- * Is called in Com_Init to initialize dvars like dedicated, com_maxfps, developer, logfile, etc..
- * Is also called after all original dvars are registered
- */
-void updater_hook_Com_Init_Dvars() {
+/** Called only once on game start after common inicialization. Used to initialize variables, cvars, etc. */
+void updater_init() {
 
     for (int i = 0; i <= 1; i++)
     {
@@ -173,10 +158,15 @@ void updater_hook_Com_Init_Dvars() {
 
         sv_update = Dvar_RegisterBool("sv_update", true, flags);
     }
+
+    // Send the request to the Auto-Update server
+    if (sv_update->value.boolean) {
+        updater_sendRequest();
+    }
 }
 
-// Server side hooks
-// The hooked functions are the same for both Windows and Linux
-void updater_hook() {
+
+/** Called before the entry point is called. Used to patch the memory. */
+void updater_patch() {
     patch_call(0x08096126, (unsigned int)hook_SV_ConnectionlessPacket);
 }

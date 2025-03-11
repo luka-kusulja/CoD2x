@@ -246,3 +246,15 @@ void updater_dialogConfirmed() {
     ShellExecute(NULL, "open", exePath, NULL, NULL, SW_SHOWNORMAL);
     ExitProcess(0);
 }
+
+/** Called before the entry point is called. Used to patch the memory. */
+void updater_patch() {
+
+    // Hook function that was called on startup to send request to update server
+    patch_call(0x0041162f, (unsigned int)&updater_sendRequest); 
+    // Hook function that was called when update UDP packet was received from update server
+    patch_call(0x0040ef9c, (unsigned int)&updater_updatePacketResponse);
+    // Hook function was was called when user confirm the update dialog (it previously open url)
+    patch_jump(0x0053bc40, (unsigned int)&updater_dialogConfirmed);
+
+}

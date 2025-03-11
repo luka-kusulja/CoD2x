@@ -1,10 +1,11 @@
 #include "window.h"
-#include "shared.h"
-#include "rinput.h"
 
 #include <windows.h>
 #include <stdio.h>
 #include <cstdint>
+
+#include "shared.h"
+#include "rinput.h"
 
 
 #define vid_xpos                    (*((dvar_t**)0x00d77158))
@@ -512,8 +513,8 @@ void window_hook_rendered() {
 
 }
 
-// Called when the game initializes cvars (Com_Init)
-void window_hook_init_cvars() {
+/** Called only once on game start after common inicialization. Used to initialize variables, cvars, etc. */
+void window_init() {
     // We need to register cvars here to fix the issue caused by registering cvars in renderer that are also referenced in CoD2MP_s.exe
     // Cvars that get first registered in renderer DLL have strings allocated in renderer DLL, so when vid_restart is called, the renderer DLL is unloaded and the strings are freed.
     // So we need to register the cvars in this DLL where the strings will be allocated for the whole time of the game.
@@ -525,8 +526,8 @@ void window_hook_init_cvars() {
     m_debug = Dvar_RegisterBool("m_debug", false, (enum dvarFlags_e)(DVAR_CHANGEABLE_RESET));
 }
 
-// Called before the game is started
-void window_hook() {
+/** Called before the entry point is called. Used to patch the memory. */
+void window_patch() {
     // Hook the game window procedure
     patch_int32(0x004663D1 + 4, (unsigned int)&CoD2WindowProc);
 
