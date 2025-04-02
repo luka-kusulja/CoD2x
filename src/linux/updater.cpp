@@ -51,7 +51,7 @@ void download_and_swap_async(const char *current_version, const char *new_versio
 
 void updater_downloadFile(const char* updateFile, const char* newVersionString) {
     Com_Printf("Downloading file '%s' in background.\n", updateFile);
-    Com_Printf("New version will be loaded after restart.\n", updateFile);
+    Com_Printf("New version will be loaded after application restart.\n");
 
     download_and_swap_async(APP_VERSION, newVersionString, updateFile);
 }
@@ -60,24 +60,23 @@ void updater_downloadFile(const char* updateFile, const char* newVersionString) 
 
 
 bool updater_sendRequest() {
-
-    Com_DPrintf("Resolving AutoUpdate Server %s...\n", UPDATE_SERVER_URI);
-    if (!NET_StringToAdr(UPDATE_SERVER_URI, &updater_address))
+    Com_DPrintf("Resolving AutoUpdate Server %s...\n", SERVER_UPDATE_URI);
+    if (!NET_StringToAdr(SERVER_UPDATE_URI, &updater_address))
     {
-        Com_Printf("\nCoD2x: Failed to resolve AutoUpdate server %s.\n", UPDATE_SERVER_URI);
+        Com_Printf("\nFailed to resolve AutoUpdate server %s.\n", SERVER_UPDATE_URI);
         return 0;
     }
 
-    updater_address.port = (uint16_t)((UPDATE_SERVER_PORT >> 8) | (UPDATE_SERVER_PORT << 8)); // Swap the port bytes
+    updater_address.port = BigShort(SERVER_UPDATE_PORT); // Swap the port bytes
 
-    Com_DPrintf("AutoUpdate resolved to %i.%i.%i.%i:%i\n", updater_address.ip[0], updater_address.ip[1], updater_address.ip[2], updater_address.ip[3], UPDATE_SERVER_PORT);
+    Com_DPrintf("AutoUpdate resolved to %s\n", NET_AdrToString(updater_address));
 
-    Com_Printf("CoD2x: Checking for updates...\n");
+    Com_Printf("Checking for updates...\n");
 
     // Send the request to the Auto-Update server
     char* udpPayload = va("getUpdateInfo2 \"%s\" \"%s\" \"%s\"\n", "CoD2x MP", APP_VERSION, "linux-i386");
 
-    bool status = NET_OutOfBandPrint(udpPayload, 0, updater_address);
+    bool status = NET_OutOfBandPrint(NS_CLIENT, updater_address, udpPayload);
 
     Com_Printf("-----------------------------------\n");
 
@@ -91,17 +90,13 @@ void updater_updatePacketResponse(struct netaddr_s addr)
         return;
     }
 
-    uint16_t port = (uint16_t)((UPDATE_SERVER_PORT >> 8) | (UPDATE_SERVER_PORT << 8)); // Swap the port bytes
+    Com_DPrintf("Auto-Updater response from %s\n", NET_AdrToString(addr));
     
-    Com_DPrintf("Auto-Updater response from %i.%i.%i.%i:%i\n", addr.ip[0], addr.ip[1], addr.ip[2], addr.ip[3], port);
-    
-    if (updater_address.type != addr.type || updater_address.port != addr.port || memcmp(updater_address.ip, addr.ip, 0x4) != 0)
+    if (NET_CompareBaseAdrSigned(&updater_address, &addr))
     {
         Com_DPrintf("Received update packet from unexpected IP.\n");
         return;
     }
-
-    Com_DPrintf("UDP payload: '%s \"%s\" \"%s\" \"%s\"'\n", Cmd_Argv(0), Cmd_Argv(1), Cmd_Argv(2), Cmd_Argv(3));
 
 
     Com_Printf("-----------------------------------\n");
@@ -126,27 +121,6 @@ void updater_updatePacketResponse(struct netaddr_s addr)
     return;
 }
 
-
-void __cdecl hook_SV_ConnectionlessPacket(enum netadrtype_e type, int32_t ip, int32_t port, int32_t ipx1, int32_t ipx2, void* msg) {
-
-    // Call the original function
-	((void (__cdecl *)(enum netadrtype_e, int32_t, int32_t, int32_t, int32_t, void*))0x0809594e)(type, ip, port, ipx1, ipx2, msg);
-
-    const char *c;
-    c = Cmd_Argv( 0 );
-
-    if (strcmp(c, "updateResponse") == 0)
-    {
-        struct netaddr_s addr;
-        addr.type = type;
-        addr.port = port;
-        *(int*)&addr.ip = ip;
-        addr.ipx_data = ipx1;
-        addr.ipx_data2 = ipx2;
-        updater_updatePacketResponse(addr);
-    }
-}
-
 /** Called only once on game start after common inicialization. Used to initialize variables, cvars, etc. */
 void updater_init() {
 
@@ -168,5 +142,4 @@ void updater_init() {
 
 /** Called before the entry point is called. Used to patch the memory. */
 void updater_patch() {
-    patch_call(0x08096126, (unsigned int)hook_SV_ConnectionlessPacket);
 }
