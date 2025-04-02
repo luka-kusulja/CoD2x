@@ -62,6 +62,7 @@ void __cdecl hook_Com_Init(char* cmdline) {
     fps_init();
     game_init();
     hwid_init();
+    master_server_init();
 
     // Server side
     server_init();
