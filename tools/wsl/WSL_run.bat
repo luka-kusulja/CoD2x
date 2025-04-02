@@ -69,7 +69,7 @@ wsl tmux kill-session -t appsession 2>nul
 :: Start gdbserver to launch the app in a tmux session named 'gdbsession' with valid window size
 echo.
 echo Starting gdbserver in tmux session 'gdbsession'...
-set cmd="cd ~/CoD2x && LD_PRELOAD=~/CoD2x/libCoD2x.so gdbserver :1234 ./cod2_lnxded %ARGS%; bash"
+set cmd="cd ~/CoD2x && LD_PRELOAD=~/CoD2x/libCoD2x.so gdbserver :1234 ./cod2_lnxded \"%ARGS%\"; bash"
 echo %cmd%
 wsl tmux new-session -d -s gdbsession %cmd%
 
