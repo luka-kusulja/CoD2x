@@ -168,9 +168,18 @@ $(SHARED_SRC_DIR)/version.h: makefile
 build_mss32_win: $(SHARED_SRC_DIR)/version.h $(WIN_MSS32_TARGET)
 	@echo "MSS32 (Windows) build complete."
 	@echo.
+	@echo.
+	@echo.
 
-# Linking with resource file
+# Linking files into mss32.dll
 $(WIN_MSS32_TARGET): $(WIN_MSS32_OBJECTS) $(WIN_MSS32_OBJ_DIR)/version.res
+	@echo Renaming '$@' to ensure it is not locked by another process...
+	@-if exist "$(subst /,\,$(abspath $@.2.old))" move "$(subst /,\,$(abspath $@.2.old))" "$(subst /,\,$(abspath $@.3.old))"
+	@-if exist "$(subst /,\,$(abspath $@.1.old))" move "$(subst /,\,$(abspath $@.1.old))" "$(subst /,\,$(abspath $@.2.old))"
+	@-if exist "$(subst /,\,$(abspath $@))" move "$(subst /,\,$(abspath $@))" "$(subst /,\,$(abspath $@.1.old))"
+	@echo   Done.
+
+	@echo.
 	@echo "Linking $@..."
 	$(WIN_CC) $(WIN_LFLAGS) -o $@ $^ $(WIN_LIBS) $(WIN_MSS32_SRC_DIR)/mss32.def
 	@echo   Done.
