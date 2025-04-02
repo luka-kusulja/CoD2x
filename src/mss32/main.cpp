@@ -12,6 +12,9 @@
 BYTE originalBytes[5];
 void* originalEntryPoint = NULL;
 
+HMODULE EXE_HMODULE = NULL;
+char EXE_PATH[MAX_PATH] = {0}; 
+char EXE_DIRECTORY_PATH[MAX_PATH] = {0};
 
 /**
  * Load the CoD2x patches
@@ -64,12 +67,6 @@ void __cdecl main_newEntryPoint() {
  * Hook the application's entry point
  */
 bool main_patchEntryPoint() {
-    // Get the base address of the application
-    HMODULE hModule = GetModuleHandle(NULL);
-    if (!hModule) {
-        SHOW_ERROR_WITH_LAST_ERROR("Failed to get application base address.");
-        return FALSE; 
-    }
 
     // Load the original mss32.dll functions
     bool ok = mss32_load();
@@ -77,7 +74,7 @@ bool main_patchEntryPoint() {
 
     // Check if process is SinglePlayer, if it is, exit
     char processName[MAX_PATH];
-    GetModuleFileNameA(hModule, processName, MAX_PATH);
+    GetModuleFileNameA(EXE_HMODULE, processName, MAX_PATH);
     if (strstr(processName, "CoD2SP_s.exe") != NULL) {
         return TRUE;
     }
@@ -102,6 +99,44 @@ bool main_patchEntryPoint() {
     return TRUE;
 }
 
+/**
+ * Get the module, executable path and directory
+ */
+bool main_getExeData() {
+    char exePath[MAX_PATH];
+    char exeDirectory[MAX_PATH];
+
+    // Get the base address of the application
+    HMODULE hModule = GetModuleHandle(NULL);
+    if (!hModule) {
+        SHOW_ERROR_WITH_LAST_ERROR("Failed to get application base address.");
+        return false; 
+    }
+    EXE_HMODULE = hModule;
+
+    // Get the full path of the current executable
+    if (GetModuleFileNameA(NULL, exePath, MAX_PATH) == 0) {
+        SHOW_ERROR_WITH_LAST_ERROR("Failed to get the executable path.");
+        return false;
+    }
+
+    // Extract the directory from the executable path
+    strncpy(exeDirectory, exePath, MAX_PATH);
+    char* lastBackslash = strrchr(exeDirectory, '\\');
+    if (lastBackslash) {
+        *lastBackslash = '\0'; // Terminate the string at the last backslash
+    } else {
+        SHOW_ERROR_WITH_LAST_ERROR("Failed to determine executable directory.");
+        return false;
+    }
+
+    // Save the paths
+    strncpy(EXE_PATH, exePath, MAX_PATH);
+    strncpy(EXE_DIRECTORY_PATH, exeDirectory, MAX_PATH);
+
+    return true;
+}
+
 
 /**
  * Entry point for the DLL.
@@ -112,10 +147,14 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
     {
         case DLL_PROCESS_ATTACH: 
         {
-            bool ok = main_patchEntryPoint();
-            if (!ok) {
-                ExitProcess(EXIT_FAILURE);
-            }
+            bool ok;
+
+            ok = main_getExeData();
+            if (!ok) ExitProcess(EXIT_FAILURE);
+
+            ok = main_patchEntryPoint();
+            if (!ok) ExitProcess(EXIT_FAILURE);
+            
             break;
         }
 
