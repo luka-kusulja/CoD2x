@@ -128,6 +128,12 @@ void common_patch()
     patch_call(ADDR(0x004344a8, 0x080620fd), (unsigned int)ADDR(Com_ParseCommandLine_Win32, Com_ParseCommandLine));
 
 
+    // Fix the port negative number when formatting IP address
+    patch_string_ptr(ADDR(0x00447733 + 1, 0x0806b238 + 4), "%i.%i.%i.%i:%hu");          // originally "%i.%i.%i.%i:%i"
+    #if COD2X_WIN32
+        patch_string_ptr(0x00412143 + 1, "%i.%i.%i.%i:%hu");                         // originally "%i.%i.%i.%i:%i"
+    #endif
+
     // Value of cvar /shortversion   ->   "1.3"
     // Also visible in menu right bottom corner
     patch_string_ptr(ADDR(0x0043477c + 1, 0x08062281 + 4), APP_VERSION);             // originally "1.3"
