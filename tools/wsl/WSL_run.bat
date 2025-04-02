@@ -31,6 +31,33 @@ echo Files:
 wsl bash -c "cd ~/CoD2x && ls && pwd"
 echo.
 
+:: Mirroring network mode allow the WSL2 instance to access the same network as the host machine
+:: Its required to allow CoD2 server to be accessed from the network correctly
+echo Setting up network mirroring mode...
+set WSL_CONFIG=%USERPROFILE%\.wslconfig
+
+:: Check if .wslconfig already exists
+if exist "%WSL_CONFIG%" (
+    echo %WSL_CONFIG% already exists at. No changes made.
+) else (
+    :: Create .wslconfig with mirrored networking mode
+    echo Creating .wslconfig at %WSL_CONFIG%
+    (
+        echo [wsl2]
+        echo networkingMode=mirrored
+    ) > "%WSL_CONFIG%"
+
+    :: Shut down WSL to apply changes
+    echo Shutting down WSL to apply configuration...
+    wsl --shutdown
+)
+
+:: Print WSL IP address
+echo.
+echo WSL IP address:
+wsl hostname -I
+echo.
+
 :: Terminate any existing gdbserver and tmux sessions to avoid conflicts
 echo Terminating any existing gdbserver instances...
 wsl pkill gdbserver
