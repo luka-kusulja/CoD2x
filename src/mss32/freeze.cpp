@@ -23,7 +23,12 @@ DWORD WINAPI freeze_watchdogThreadProc(LPVOID lpParameter) {
         Sleep(1000);
 
         DWORD currentTime = GetTickCount();
-        if (currentTime - freeze_lastHeartbeat > 10000) {
+        if (currentTime - freeze_lastHeartbeat > 12000) {
+
+            // Dont show messagebox for servers
+            if (dedicated->value.boolean > 0) {
+                continue;
+            }
 
             // Message box asking if to ignore the freeze or create dump file and exit
             int result = MessageBox(NULL, 
@@ -53,6 +58,14 @@ DWORD WINAPI freeze_watchdogThreadProc(LPVOID lpParameter) {
 
 /** Called every frame on frame start. */
 void freeze_frame() {
+
+    // For server just print the freeze time
+    if (dedicated->value.boolean > 0) {
+        DWORD deltaTime = GetTickCount() - freeze_lastHeartbeat;
+        if (freeze_lastHeartbeat > 0 && (deltaTime) > 1000) {
+            Com_DPrintf("Server frozen for %d ms\n", deltaTime);
+        }
+    }
 
     // Update the last heartbeat
     freeze_lastHeartbeat = GetTickCount();
