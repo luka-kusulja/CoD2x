@@ -14,12 +14,15 @@
  */
 void __cdecl hook_Com_Init(char* cmdline) {
 
+    Com_Printf("CMD: '%s'\n", cmdline);
+    
+    server_init();
+
     // Call the original function
 	((void (__cdecl *)(char*))0x080620c0)(cmdline);
 
-
+    common_init();
     updater_init();
-    server_init();
 }
 
 
@@ -52,7 +55,6 @@ bool hook_patch() {
 
     common_patch();
     server_patch();
-
     updater_patch();
 
     return true;

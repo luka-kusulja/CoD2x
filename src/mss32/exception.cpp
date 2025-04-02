@@ -97,7 +97,7 @@ LONG WINAPI exception_handler(EXCEPTION_POINTERS* pExceptionInfo) {
         //crashData "CoD2x MP"      "1.0.0"          "win-x86" "{HWID}" "{CODE}" "{ADDRESS}" "{MODULE_NAME}"
         "crashData \"CoD2x MP\" \"" APP_VERSION "\" \"win-x86\" \"%s\" \"0x%08x\" \"0x%p\" \"%s\"\n", 
         "0", (unsigned int)(pExceptionInfo->ExceptionRecord->ExceptionCode), pExceptionInfo->ExceptionRecord->ExceptionAddress, moduleName);
-    NET_OutOfBandPrint(udpPayload, 0, updater_address);
+    NET_OutOfBandPrint(NS_CLIENT, updater_address, udpPayload);
 
 
     DWORD exceptionCode = pExceptionInfo->ExceptionRecord->ExceptionCode;

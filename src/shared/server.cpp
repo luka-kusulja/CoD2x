@@ -1,25 +1,77 @@
 #include "server.h"
+
 #include "shared.h"
 #include "common.h"
+#if COD2X_WIN32
+#include "../mss32/updater.h"
+#endif
+#if COD2X_LINUX
+#include "../linux/updater.h"
+#endif
 
-dvar_t* sv_masterPort;
-dvar_t* sv_masterServer;
 
-#define sv_masterAddress (*((netaddr_s*)( ADDR(0x019a6fe8, 0x0849fbe0) )))
+#define svs_authorizeAddress 					(*((netaddr_s*)(ADDR(0x00d52770, 0x084400f0))))
+#define svs_challenges 							(*((challenge_t (*)[MAX_CHALLENGES])(ADDR(0x00d3575c, 0x084230dc))))
+#define svs_time 								(*((int*)(ADDR(0x00d35704, 0x08423084))))
+#define svs_nextHeartbeatTime 					(*((int*)(ADDR(0x00d35754, 0x084230d4))))
+#define svs_nextStatusResponseTime 				(*((int*)(ADDR(0x00d35758, 0x084230d8))))
+
+#define MAX_MASTER_SERVERS  3
+dvar_t*		sv_master[MAX_MASTER_SERVERS];
+netaddr_s	masterServerAddr[MAX_MASTER_SERVERS] = { {}, {}, {} };
+dvar_t*		sv_cracked;
+dvar_t*		showpacketstrings;
+int 		nextIPTime = 0;
 
 
+void SV_VoicePacket(netaddr_s from, msg_t *msg) { 
+	WL(
+		ASM_CALL(RETURN_VOID, 0x0045a750, 5, EAX(msg), PUSH_STRUCT(from, 5)),	// on Windows, the msg is passed in EAX
+		ASM_CALL(RETURN_VOID, 0x08094b56, 6, PUSH_STRUCT(from, 5), PUSH(msg))
+	);
+}
+
+void SVC_Status(netaddr_s from) {
+	ASM_CALL(RETURN_VOID, ADDR(0x0045a880, 0x08094c84), 5, PUSH_STRUCT(from, 5));
+}
+
+void SVC_Info(netaddr_s from) {
+	ASM_CALL(RETURN_VOID, ADDR(0x0045ae80, 0x0809537c), 5, PUSH_STRUCT(from, 5));
+}
+
+void SVC_RemoteCommand(netaddr_s from) {
+	ASM_CALL(RETURN_VOID, ADDR(0x004b8ac0, 0x08097188), 5, PUSH_STRUCT(from, 5));
+}
+
+bool SV_IsBannedGuid(int guid) {
+	int ret;
+	ASM_CALL(RETURN(ret), ADDR(0x004531d0, 0x0808d630), 1, PUSH(guid));
+	return ret;
+}
+
+bool SV_IsTempBannedGuid(int guid) {
+	int ret;
+	ASM_CALL(RETURN(ret), ADDR(0x00453160, 0x0808d5ac), WL(0, 1), WL(EDI, PUSH)(guid));
+	return ret;
+}
 
 
-void SV_DirectConnect(netadrtype_e type, int32_t ip, uint32_t port, int32_t ipx1, int32_t ipx2)
+void server_unbanAll_command() {
+	// Remove file main/ban.txt
+	bool ok = FS_Delete("ban.txt");
+	if (ok) {
+		Com_Printf("All bans removed\n");
+	} else {
+		Com_Printf("Error removing bans\n");
+	}
+}
+
+
+void SV_DirectConnect(netaddr_s addr)
 {
-    Com_DPrintf("SV_DirectConnect(ip = %i.%i.%i.%i, port: %i)\n", (ip >> 0) & 0xFF, (ip >> 8) & 0xFF, (ip >> 16) & 0xFF, (ip >> 24) & 0xFF, port);
+	int i;
 
-    netaddr_s addr;
-    addr.type = type;
-    *(int*)&addr.ip = ip;
-    addr.port = port;
-    addr.ipx_data = ipx1;
-    addr.ipx_data2 = ipx2;
+    Com_DPrintf("SV_DirectConnect(%s)\n", NET_AdrToString(addr));
 
     const char *infoKeyValue = Cmd_Argv(1);
 
@@ -39,7 +91,7 @@ void SV_DirectConnect(netadrtype_e type, int32_t ip, uint32_t port, int32_t ipx1
             case 117: msg = "Your version is 1.2\nYou need version 1.3 and CoD2x"; break;
             default: msg = "Your CoD2 version is unknown"; break;
         }
-        NET_OutOfBandPrint(va("error\nEXE_SERVER_IS_DIFFERENT_VER\x15%s%s\n\x00", APP_VERSION "\n\n", msg), 1, addr);
+        NET_OutOfBandPrint(NS_SERVER, addr, va("error\nEXE_SERVER_IS_DIFFERENT_VER\x15%s%s\n\x00", APP_VERSION "\n\n", msg));
         Com_DPrintf("    rejected connect from protocol version %i (should be %i)\n", protocolNum, 118);
         return;
     }
@@ -48,10 +100,9 @@ void SV_DirectConnect(netadrtype_e type, int32_t ip, uint32_t port, int32_t ipx1
 
     // CoD2x is not installed on 1.3 client
     if (cod2xNum == 0) {
-        NET_OutOfBandPrint(va(
+        NET_OutOfBandPrint(NS_SERVER, addr, va(
             "error\nEXE_SERVER_IS_DIFFERENT_VER\x15%s\n\x00", 
-            APP_VERSION "\n\n" "Download CoD2x at:\n" APP_URL ""), 
-        1, addr);
+            APP_VERSION "\n\n" "Download CoD2x at:\n" APP_URL ""));
         Com_DPrintf("    rejected connect from non-CoD2x version\n");
         return;
     }
@@ -61,16 +112,592 @@ void SV_DirectConnect(netadrtype_e type, int32_t ip, uint32_t port, int32_t ipx1
         const char* msg = va(
             "error\nEXE_SERVER_IS_DIFFERENT_VER\x15%s\n\x00", 
             APP_VERSION "\n\n" "Update CoD2x to version " APP_VERSION " or above");
-        NET_OutOfBandPrint(msg, 1, addr);
+        NET_OutOfBandPrint(NS_SERVER, addr, msg);
         Com_DPrintf("    rejected connect from CoD2x version %i (should be %i)\n", cod2xNum, APP_VERSION_PROTOCOL);
         return;
     }
 
+
+	int hwid = atoi(Info_ValueForKey(str, "cl_hwid"));
+
+	if (hwid == 0)
+	{
+		Com_Printf("rejected connection from client without HWID\n");
+		NET_OutOfBandPrint(NS_SERVER, addr, "error\n\x15You have invalid HWID");
+		return;
+	}
+
+	int challenge = atoi( Info_ValueForKey( str, "challenge" ) );
+
+	// loopback and bot clients don't need to challenge
+	if (!NET_IsLocalAddress(addr))
+	{
+		for (i = 0; i < MAX_CHALLENGES; i++)
+		{
+			if ( NET_CompareAdr( addr, svs_challenges[i].adr ) )
+			{
+				if (challenge == svs_challenges[i].challenge )
+					break;
+			}
+		}
+		if (i == MAX_CHALLENGES)
+			return; // will be handled in original function again
+
+		// CoD2x: change GUID to HWID
+		svs_challenges[i].guid = hwid;
+	}
+
+
+	if (SV_IsBannedGuid(hwid))
+	{
+		Com_Printf("rejected connection from permanently banned HWID %i\n", hwid);
+		NET_OutOfBandPrint( NS_SERVER, svs_challenges[i].adr, "error\n\x15You are permanently banned from this server" );
+		memset( &svs_challenges[i], 0, sizeof( svs_challenges[i]));
+		return;
+	}
+
+	if (SV_IsTempBannedGuid(hwid))
+	{
+		Com_Printf("rejected connection from temporarily banned HWID %i\n", hwid);
+		NET_OutOfBandPrint( NS_SERVER, svs_challenges[i].adr, "error\n\x15You are temporarily banned from this server" );
+		memset( &svs_challenges[i], 0, sizeof( svs_challenges[i]));
+		return;
+	}
+
+
     // Call the original function
-    ((void (*)(int32_t type, int32_t ip, int32_t port, int32_t ipx1, int32_t ipx2))ADDR(0x00453c20, 0x0808e2aa))(type, ip, port, ipx1, ipx2);
+    ((void (*)(netaddr_s))ADDR(0x00453c20, 0x0808e2aa))(addr);
 }
 
 
+// Resolve the master server address
+netaddr_s * SV_MasterAddress(int i)
+{
+	if (masterServerAddr[i].type == NA_INIT || sv_master[i]->modified)
+	{
+		sv_master[i]->modified = false;
+
+		Com_Printf("Resolving master server %s\n", sv_master[i]->value.string);
+		if (NET_StringToAdr(sv_master[i]->value.string, &masterServerAddr[i]) == 0)
+		{
+			Com_Printf("Couldn't resolve address: %s\n", sv_master[i]->value.string);
+			// Address type is set to NA_BAD, so it will not be resolved again
+		}
+		else
+		{
+			if (strstr(":", sv_master[i]->value.string) == 0)
+			{
+				masterServerAddr[i].port = BigShort(SERVER_MASTER_PORT);
+			}
+			Com_Printf( "%s resolved to %s\n", sv_master[i]->value.string, NET_AdrToString(masterServerAddr[i]));
+		}
+	}
+	return &masterServerAddr[i];
+}
+
+/**
+ * Check if the address belongs to a master server.
+ * If masterServerUri is NULL, it will check all master servers.
+ * If masterServerUri is not NULL, it will check only the master server with this URI.
+ */
+bool server_isAddressMasterServer(netaddr_s from, const char* masterServerUri = NULL)
+{
+	if (masterServerUri == NULL) {
+		// Check all master servers
+		for (int i = 0; i < MAX_MASTER_SERVERS; i++) {
+			netaddr_s adr = *SV_MasterAddress(i);
+			if (NET_CompareBaseAdr(from, adr)) {
+				return true;
+			}
+		}
+	} else {
+		for (int i = 0; i < MAX_MASTER_SERVERS; i++) {
+			if (strcmp(sv_master[i]->value.string, masterServerUri) == 0) {
+				netaddr_s adr = *SV_MasterAddress(i);
+				if (NET_CompareBaseAdr(from, adr)) {
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+#define	HEARTBEAT_MSEC	180000 // 3 minutes
+#define	STATUS_MSEC		600000 // 10 minutes
+
+void SV_MasterHeartbeat( const char *hbname )
+{
+	int i;
+
+	// "dedicated 1" is for lan play, "dedicated 2" is for public play
+	if ( !dedicated || dedicated->value.integer != 2 )
+	{
+		return;     // only dedicated servers send heartbeats
+	}
+
+	// It time to send a heartbeat to the master servers
+	if ( svs_time >= svs_nextHeartbeatTime )
+	{
+		svs_nextHeartbeatTime = svs_time + HEARTBEAT_MSEC;
+
+		// CoD2x: Send heartbeats to multiple master servers
+		for (i = 0 ; i < MAX_MASTER_SERVERS; i++)
+		{
+			if (sv_master[i]->value.string[0] == '\0')
+				continue;
+			
+			SV_MasterAddress(i); // Resolve the master server address in cause its not resolved yet or sv_master was modified
+
+			if (masterServerAddr[i].type != NA_BAD)
+			{
+				Com_Printf( "Sending heartbeat to %s\n", sv_master[i]->value.string );
+				NET_OutOfBandPrint( NS_SERVER, masterServerAddr[i], va("heartbeat %s\n", hbname));
+			}
+		}
+		// CoD2x: End
+	}
+
+	// Its time to send a status response to the master servers
+	if ( svs_time >= svs_nextStatusResponseTime )
+	{
+		svs_nextStatusResponseTime = svs_time + STATUS_MSEC;
+
+		// CoD2x: Send status to multiple master servers
+		for (i = 0 ; i < MAX_MASTER_SERVERS; i++)
+		{
+			if (sv_master[i]->value.string[0] == '\0')
+				continue;
+
+			SV_MasterAddress(i); // Resolve the master server address in cause its not resolved yet or sv_master was modified
+
+			if (masterServerAddr[i].type != NA_BAD)
+			{
+				SVC_Status(masterServerAddr[i]);
+			}
+		}
+		// CoD2x: End
+	}
+
+	// CoD2x: Ask for IP and port of this server
+	if (svs_time >= nextIPTime && nextIPTime > 0) 
+	{
+		nextIPTime = svs_time + 2000; // Try again after 2 seconds, unless response is received
+
+		for (i = 0 ; i < MAX_MASTER_SERVERS; i++)
+		{
+			if (strcmp(sv_master[i]->value.string, SERVER_MASTER_URI) != 0) // find CoD2x master server
+				continue;
+
+			SV_MasterAddress(i); // Resolve the master server address in cause its not resolved yet or sv_master was modified
+
+			if (masterServerAddr[i].type != NA_BAD)
+			{
+				NET_OutOfBandPrint(NS_SERVER, masterServerAddr[i], "getIp");
+			}
+		}
+	}
+	// CoD2x: End
+}
+
+
+
+/**
+ * Process the response from authorization server.
+ * When the client starts to connect to the server, the client will send CDKEY to the authorization server along with the MD5 hash of CDKEY.
+ * The server asks the autorization server if the clients IP with this MD5-CDKEY has valid CDKEY.
+ * Example responses from the authorization server:
+ * 	`ipAuthorize 1058970440 accept KEY_IS_GOOD 822818 9e85a9484dab10748d089ebf2a47b5e8`
+ * 	`ipAuthorize 530451529 deny INVALID_CDKEY 0 e4faec25a8bb0b913f0930b3937fada4`
+ */
+void SV_AuthorizeIpPacket( netaddr_s from )
+{
+	int challenge;
+	int i;
+	const char    *response;
+	const char    *info;
+	char ret[1024];
+
+	if (NET_CompareBaseAdrSigned(&from, &svs_authorizeAddress ) != 0)
+	{
+		Com_Printf( "SV_AuthorizeIpPacket: not from authorize server\n" );
+		return;
+	}
+
+	challenge = atoi(Cmd_Argv(1));
+
+	// Find the challenge
+	for (i = 0; i < MAX_CHALLENGES; i++)
+	{
+		if (svs_challenges[i].challenge == challenge )
+			break;
+	}
+	if (i == MAX_CHALLENGES )
+	{
+		Com_Printf( "SV_AuthorizeIpPacket: challenge not found\n" );
+		return;
+	}
+
+	// send a packet back to the original client
+	svs_challenges[i].pingTime = svs_time;
+
+	response = Cmd_Argv( 2 );
+	info = Cmd_Argv( 3 );
+
+    // CoD2x: Cracked server
+	if (sv_cracked->value.boolean)
+	{
+		// Even if the server is cracked, wait for the clients to be validated by the authorization server
+		// If the client has valid key-code, the authorization server will send "accept" response and we can atleast get the client's GUID
+		if (Q_stricmp( response, "deny" ) == 0 && info && info[0] && (Q_stricmp(info, "CLIENT_UNKNOWN_TO_AUTH") == 0 || Q_stricmp(info, "BAD_CDKEY") == 0))
+		{
+			NET_OutOfBandPrint(NS_SERVER, svs_challenges[i].adr, "needcdkey"); // Awaiting key code authorization warning
+			memset( &svs_challenges[i], 0, sizeof( svs_challenges[i]));
+			return;
+		}
+		response = "accept";
+		info = "KEY_IS_GOOD";
+	}
+    // CoD2x: End
+
+	if (Q_stricmp(response, "demo") == 0)
+	{
+		// they are a demo client trying to connect to a real server
+		NET_OutOfBandPrint( NS_SERVER, svs_challenges[i].adr, "error\nEXE_ERR_NOT_A_DEMO_SERVER" );
+		memset( &svs_challenges[i], 0, sizeof( svs_challenges[i]));
+		return;
+	}
+
+	if (Q_stricmp(response, "accept") == 0)
+	{
+		// CoD2x: GUID from authorization server is replaced by HWID - guid is writed in SV_DirectConnect
+		#if 0
+		svs_challenges[i].guid = atoi(Cmd_Argv( 4 ));
+
+		if (SV_IsBannedGuid(svs_challenges[i].guid) )
+		{
+			Com_Printf("rejected connection from permanently banned GUID %i\n", svs_challenges[i].guid);
+			NET_OutOfBandPrint( NS_SERVER, svs_challenges[i].adr, "error\n\x15You are permanently banned from this server" );
+			memset( &svs_challenges[i], 0, sizeof( svs_challenges[i]));
+			return;
+		}
+
+		if (SV_IsTempBannedGuid(svs_challenges[i].guid) )
+		{
+			Com_Printf("rejected connection from temporarily banned GUID %i\n", svs_challenges[i].guid);
+			NET_OutOfBandPrint( NS_SERVER, svs_challenges[i].adr, "error\n\x15You are temporarily banned from this server" );
+			memset( &svs_challenges[i], 0, sizeof( svs_challenges[i]));
+			return;
+		}
+		#endif
+
+		if (!svs_challenges[i].connected)
+		{
+			NET_OutOfBandPrint(NS_SERVER, svs_challenges[i].adr, va("challengeResponse %i", svs_challenges[i].challenge));
+			return;
+		}
+
+		return;
+	}
+
+
+	// authorization failed
+	if (Q_stricmp( response, "deny" ) == 0)
+	{
+		if (!info || !info[0] )
+			NET_OutOfBandPrint(NS_SERVER, svs_challenges[i].adr, "error\nEXE_ERR_CDKEY_IN_USE"); // even if the keycode is really in use, the auth server sends "INVALID_CDKEY" anyway, so this is not printed
+
+		else if (Q_stricmp(info, "CLIENT_UNKNOWN_TO_AUTH") == 0 || Q_stricmp(info, "BAD_CDKEY") == 0)
+			NET_OutOfBandPrint(NS_SERVER, svs_challenges[i].adr, "needcdkey"); // show "Awaiting key code authorization" warning on client
+
+		// Authorization server does not differentiate between cracked key and key in use, it always sends "INVALID_CDKEY"
+		else if (Q_stricmp(info, "INVALID_CDKEY") == 0)
+			NET_OutOfBandPrint(NS_SERVER, svs_challenges[i].adr, "error\nEXE_ERR_CDKEY_IN_USE");
+
+		else if (Q_stricmp(info, "BANNED_CDKEY") == 0)
+			NET_OutOfBandPrint(NS_SERVER, svs_challenges[i].adr, "error\nEXE_ERR_BAD_CDKEY");
+		
+		memset( &svs_challenges[i], 0, sizeof( svs_challenges[i]));
+		return;
+	}
+
+
+	// invalid response
+	if (!info || !info[0] )
+		NET_OutOfBandPrint(NS_SERVER, svs_challenges[i].adr, "error\nEXE_ERR_BAD_CDKEY");
+	else
+	{
+		snprintf(ret, sizeof(ret), "error\n%s", info);
+		NET_OutOfBandPrint(NS_SERVER, svs_challenges[i].adr, ret);
+	}
+
+	memset( &svs_challenges[i], 0, sizeof( svs_challenges[i]));
+	return;
+}
+
+
+// Sends 'getIpAuthorize %i %i.%i.%i.%i "%s" %i PB "%s"' to the authorization server
+void SV_AuthorizeRequest(netaddr_s from, int challenge, const char* PBHASH) {
+	#if COD2X_WIN32
+		ASM_CALL(RETURN_VOID, 0x00452c80, 5, ESI(challenge), EDI(PBHASH), PUSH_STRUCT(from, 5));
+	#endif
+	#if COD2X_LINUX
+		((void (*)(netaddr_s, int, const char*))(0x0808cfc6))(from, challenge, PBHASH);
+	#endif
+}
+
+
+void SV_GetChallenge( netaddr_s from )
+{
+	int i;
+	int oldest;
+	int oldestTime;
+	challenge_t *challenge;
+
+	oldest = 0;
+	oldestTime = 0x7fffffff;
+
+	// see if we already have a challenge for this ip
+	challenge = &svs_challenges[0];
+	for ( i = 0 ; i < MAX_CHALLENGES ; i++, challenge++ )
+	{
+		if ( !challenge->connected && NET_CompareAdr( from, challenge->adr ) )
+		{
+			break;
+		}
+		if ( challenge->time < oldestTime )
+		{
+			oldestTime = challenge->time;
+			oldest = i;
+		}
+	}
+
+	if ( i == MAX_CHALLENGES )
+	{
+		// this is the first time this client has asked for a challenge
+		challenge = &svs_challenges[oldest];
+
+		challenge->challenge = ( ( rand() << 16 ) ^ rand() ) ^ svs_time;
+		challenge->adr = from;
+		challenge->firstTime = svs_time;
+		challenge->firstPing = 0;
+		challenge->time = svs_time;
+		challenge->connected = 0;
+		i = oldest;
+	}
+
+	// if they are on a lan address, send the challengeResponse immediately
+	if ( !net_lanauthorize->value.boolean && Sys_IsLANAddress(from) )
+	{
+		challenge->pingTime = svs_time;
+		NET_OutOfBandPrint(NS_SERVER, from, va("challengeResponse %i", challenge->challenge));
+		return;
+	}
+
+	// look up the authorize server's IP
+	if ( !svs_authorizeAddress.ip[0] && svs_authorizeAddress.type != NA_BAD )
+	{
+		Com_Printf( "Resolving authorization server %s\n", SERVER_ACTIVISION_AUTHORIZE_URI );
+		if ( !NET_StringToAdr( SERVER_ACTIVISION_AUTHORIZE_URI, &svs_authorizeAddress ) )
+		{
+			Com_Printf( "Couldn't resolve address\n" );
+			return;
+		}
+		svs_authorizeAddress.port = BigShort( SERVER_ACTIVISION_AUTHORIZE_PORT );
+		Com_Printf( "%s resolved to %i.%i.%i.%i:%i\n", SERVER_ACTIVISION_AUTHORIZE_URI,
+		            svs_authorizeAddress.ip[0], svs_authorizeAddress.ip[1],
+		            svs_authorizeAddress.ip[2], svs_authorizeAddress.ip[3],
+		            BigShort( svs_authorizeAddress.port ) );
+	}
+
+	// CoD2x: 
+	// Originally the players were allowed to join after 7 seconds if the master server was not asking for 20mins
+	// Now if the authorization server is not responding, the player will be allowed to join after 5 seconds
+	if ( svs_time - challenge->firstTime > 5000 )
+	{
+		bool isMasterServer = server_isAddressMasterServer(from);
+		if (!isMasterServer)
+		{
+			Com_DPrintf( "authorize server timed out\n" );
+
+			challenge->pingTime = svs_time;
+			NET_OutOfBandPrint( NS_SERVER, challenge->adr, va("challengeResponse %i", challenge->challenge) );
+
+			return;
+		}
+	}
+
+	const char* PBHASH = NULL;
+	if (Cmd_Argc() == 3) {
+		PBHASH = Cmd_Argv( 2 );
+		strncpy(challenge->clientPBguid, PBHASH, sizeof(challenge->clientPBguid));
+		challenge->clientPBguid[sizeof(challenge->clientPBguid) - 1] = '\0';
+	}
+
+	// otherwise send their ip to the authorize server
+	SV_AuthorizeRequest(from, challenge->challenge, PBHASH);
+}
+
+
+void server_get_address_info(char* buffer, size_t bufferSize, netaddr_s addr) {
+	if (NET_CompareAdr(addr, svs_authorizeAddress))
+		snprintf(buffer, bufferSize, "%s (authorize)", SERVER_ACTIVISION_AUTHORIZE_URI);
+	else
+	{
+		for (int i = 0; i < MAX_MASTER_SERVERS; i++)
+		{
+			if (NET_CompareAdr(addr, masterServerAddr[i]))
+			{
+				snprintf(buffer, bufferSize, "%s (sv_master%i)", sv_master[i]->value.string, i + 1);
+				break;
+			}
+		}
+	}
+}
+
+
+void SV_ConnectionlessPacket( netaddr_s from, msg_t *msg )
+{
+	char* s;
+	const char* c;
+
+	MSG_BeginReading(msg);
+	MSG_ReadLong(msg); // skip the -1 marker
+	SV_Netchan_AddOOBProfilePacket(msg->cursize);
+	s = MSG_ReadStringLine( msg );
+	Cmd_TokenizeString( s );
+	c = Cmd_Argv( 0 );
+
+	if (sv_packet_info->value.boolean )
+	{
+		Com_Printf("SV packet %s : %s\n", NET_AdrToString(from), c);
+	}
+
+	// CoD2x: Debug connection-less packets
+    if (showpacketstrings->value.boolean) {
+
+		char buffer[1024];
+		escape_string(buffer, 1024, s, msg->cursize - 4);
+		char addr_to_str[256] = {0};
+		server_get_address_info(addr_to_str, sizeof(addr_to_str), from);
+		Com_Printf("SV_ConnectionlessPacket: %s %s %i %s\n  > '%s'\n\n", NET_AdrToString(from), get_netadrtype_name(from.type), msg->cursize, addr_to_str, buffer);
+	}
+	// CoD2x: End
+
+
+	if (Q_stricmp( c, "v") == 0)
+	{
+		SV_VoicePacket( from, msg );
+	}
+	else if (Q_stricmp( c,"getstatus") == 0)
+	{
+		SVC_Status( from  );
+	}
+	else if (Q_stricmp( c,"getinfo") == 0)
+	{
+		SVC_Info( from );
+	}
+	else if (Q_stricmp( c,"getchallenge") == 0)
+	{
+		SV_GetChallenge( from );
+	}
+	else if (Q_stricmp( c,"connect") == 0)
+	{
+		SV_DirectConnect( from );
+	}
+	else if (Q_stricmp( c,"ipAuthorize") == 0)
+	{
+		SV_AuthorizeIpPacket( from );
+	}
+	else if (Q_stricmp( c, "rcon") == 0)
+	{
+		SVC_RemoteCommand( from );
+	}
+	// CoD2x: Auto-Updater
+    else if (Q_stricmp(c, "updateResponse") == 0)
+    {
+		#if COD2X_WIN32
+		updater_updatePacketResponse(from);
+		#endif
+		#if COD2X_LINUX
+		updater_updatePacketResponse(from);
+		#endif
+    }
+	// CoD2x: Master server getIp
+	else if (Q_stricmp(c, "getIpResponse") == 0)
+	{
+		nextIPTime = 0; // Stop asking for IP
+		if (server_isAddressMasterServer(from) && Cmd_Argc() == 2)
+		{
+			const char* ip = Cmd_Argv(1);
+			Com_Printf("Server IP: %s\n", ip);
+		}
+	}
+	// CoD2x: End
+	else if (Q_stricmp( c,"disconnect") == 0)
+	{
+		// if a client starts up a local server, we may see some spurious
+		// server disconnect messages when their new server sees our final
+		// sequenced messages to the old client
+	}
+}
+
+
+
+
+
+
+int Sys_SendPacket(uint32_t length, const void* data, netaddr_s addr) {
+    int ret;
+    ASM_CALL(RETURN(ret), ADDR(0x00466f50, 0x080d54a4), WL(5, 7), // on Windows, the length and data are passed in ECX and EAX
+        WL(ECX, PUSH)(length), WL(EAX, PUSH)(data), PUSH_STRUCT(addr, 5));
+    return ret;
+}
+void NET_SendLoopPacket(netsrc_e mode, int length, const void *data, netaddr_s to ) {
+    ASM_CALL(RETURN_VOID, ADDR(0x00448800, 0x0806c722), WL(7, 8), 
+        WL(EAX, PUSH)(mode), PUSH(length), PUSH(data), PUSH_STRUCT(to, 5));
+}
+
+
+int NET_SendPacket(netsrc_e sock, int length, const void *data, netaddr_s addr_to ) { 
+	if (showpackets->value.boolean && *(int *)data == -1)
+	{
+		Com_Printf("[client %i] send packet %4i\n", 0, length);
+	}
+
+	// CoD2x: Debug connection-less packets
+    if (showpacketstrings->value.boolean && *(int *)data == -1) {
+
+        char buffer[1024];
+		escape_string(buffer, 1024, (char*)data + 4, length - 4);
+		char addr_to_str[256] = {0};
+		server_get_address_info(addr_to_str, sizeof(addr_to_str), addr_to);
+        Com_Printf("NET_SendPacket: %s %s %i %s\n  < '%s'\n\n", NET_AdrToString(addr_to), get_netadrtype_name(addr_to.type), length, addr_to_str, buffer);
+    }
+	// CoD2x: End
+
+	if (addr_to.type == NA_LOOPBACK )
+	{
+		NET_SendLoopPacket(sock, length, data, addr_to);
+		return 1;
+	}
+
+	if (addr_to.type == NA_INIT || addr_to.type == NA_BAD)
+		return 0;
+
+	return Sys_SendPacket( length, data, addr_to );
+}
+
+int NET_SendPacket_Win32(netsrc_e mode, netaddr_s to) { 
+	int length;
+    void* data;
+    ASM( movr, length, "esi" );
+    ASM( movr, data, "edi" );
+    return NET_SendPacket(mode, length, data, to);
+}
+int NET_SendPacket_Linux(netsrc_e mode, uint32_t length, int32_t* data, netaddr_s to) { 
+    return NET_SendPacket(mode, length, data, to);
+}
 
 
 // Function called when a client fully connects to the server, original function calls "begin" to gsc script
@@ -114,63 +741,26 @@ void SV_SpawnServer(char* mapname) {
 
     // Call the original function
     ((void (*)(char* mapname))ADDR(0x00458a40, 0x08093520))(mapname);
+
+	nextIPTime = svs_time + 4000; // Ask for IP and port of this server in 4 seconds
 }
 
 
-
-
-netaddr_s * custom_SV_MasterAddress(void)
-{
-	if ( sv_masterAddress.type == NA_BOT )
-	{
-		Com_Printf("Resolving %s\n", sv_masterServer->value.string);
-		if ( !NET_StringToAdr(sv_masterServer->value.string, &sv_masterAddress) )
-		{
-			Com_Printf("Couldn't resolve address: %s\n", sv_masterServer->value.string);
-		}
-		else
-		{
-			if ( !strstr(":", sv_masterServer->value.string) )
-			{
-				sv_masterAddress.port = BigShort(sv_masterPort->value.integer);
-			}
-			Com_Printf("%s resolved to %i.%i.%i.%i:%i\n",
-						sv_masterServer->value.string,
-						sv_masterAddress.ip[0],
-						sv_masterAddress.ip[1],
-						sv_masterAddress.ip[2],
-						sv_masterAddress.ip[3],
-						BigShort(sv_masterAddress.port));
-		}
-	}
-	return &sv_masterAddress;
-}
 
 
 // Called after all is initialized on game start
 void server_init()
 {
-    for (int i = 0; i <= 1; i++)
-    {
-        dvarFlags_e flags = i == 0 ? 
-            (dvarFlags_e)(DVAR_LATCH | DVAR_CHANGEABLE_RESET) : // allow the value to be changed via cmd when starting the game
-            (dvarFlags_e)(DVAR_ROM | DVAR_CHANGEABLE_RESET);    // then make it read-only to avoid changes
+	sv_master[0] = Dvar_RegisterString("sv_master1", SERVER_ACTIVISION_MASTER_URI, (dvarFlags_e)(DVAR_CHANGEABLE_RESET));
+	sv_master[1] = Dvar_RegisterString("sv_master2", SERVER_MASTER_URI, (dvarFlags_e)(DVAR_CHANGEABLE_RESET));
+	sv_master[2] = Dvar_RegisterString("sv_master3", "", (dvarFlags_e)(DVAR_CHANGEABLE_RESET));
 
-        sv_masterServer = Dvar_RegisterString("sv_masterServer", "cod2master.activision.com", flags);
-        sv_masterPort = Dvar_RegisterInt("sv_masterPort", 20710, 0, 65535, flags);
-    }
+	sv_cracked = Dvar_RegisterBool("sv_cracked", false, (dvarFlags_e)(DVAR_CHANGEABLE_RESET));
+	
+	showpacketstrings = Dvar_RegisterBool("showPacketStrings", false, DVAR_CHANGEABLE_RESET);
 
-    #if COD2X_WIN32
-        // After the cvars are loaded, change the master server address
-        patch_string_ptr(0x004b3fa5 + 1, sv_masterServer->value.string);
-        patch_int32(0x004b3fb4 + 1, sv_masterPort->value.integer);
-
-        // Change the protocol used when requesting list of servers from master server
-        //patch_byte(0x00539727 + 1, PROTOCOL_VERSION);
-        patch_byte(0x00539727 + 1, 118);
-    #endif
-
-    hwid_server_init();
+	
+    Cmd_AddCommand("unbanAll", server_unbanAll_command);
 }
 
 
@@ -186,9 +776,24 @@ void server_patch()
     // Remove the Com_DPrintf("SV_DirectConnect()\n") call - now its being done in SV_DirectConnect
     patch_nop(ADDR(0x00453c87, 0x0808e2f7), 5);
 
-    // Hook the SV_DirectConnect function
-    patch_call(ADDR(0x0045b8cd, 0x08095d6c), (unsigned int)SV_DirectConnect);
+    // Hook the SV_ConnectionlessPacket function
+    patch_call(ADDR(0x0045bbc2, 0x08096126), (unsigned int)SV_ConnectionlessPacket);
 
+	// Hook SV_MasterHeartbeat
+	patch_call(ADDR(0x0045c8b2, 0x08096e03), (unsigned int)SV_MasterHeartbeat); // "COD-2"
+	patch_call(ADDR(0x0045a18f, 0x08097049), (unsigned int)SV_MasterHeartbeat); // "flatline"
+
+
+    patch_call(ADDR(0x00447ed7, 0x0806bb8f), (unsigned int)WL(NET_SendPacket_Win32, NET_SendPacket_Linux)); 
+    patch_call(ADDR(0x00448117, 0x0806bdf8), (unsigned int)WL(NET_SendPacket_Win32, NET_SendPacket_Linux)); 
+    patch_call(ADDR(0x004489fd, 0x0806c9e0), (unsigned int)WL(NET_SendPacket_Win32, NET_SendPacket_Linux)); 
+    patch_call(ADDR(0x00448add, 0x0806cafa), (unsigned int)WL(NET_SendPacket_Win32, NET_SendPacket_Linux)); 
+    patch_call(ADDR(0x00448be9, 0x0806cc31), (unsigned int)WL(NET_SendPacket_Win32, NET_SendPacket_Linux)); 
+    patch_call(ADDR(0x00448ce9, 0x0806cd4f), (unsigned int)WL(NET_SendPacket_Win32, NET_SendPacket_Linux)); 
+    patch_call(ADDR(0x0045ca4b, 0x08097708), (unsigned int)WL(NET_SendPacket_Win32, NET_SendPacket_Linux)); 
+    #if COD2X_WIN32
+        patch_call(0x0041296b, (unsigned int)NET_SendPacket_Win32); // CL_Netchan_SendOOBPacket
+    #endif
 
     // Hook the SV_SpawnServer function
     patch_call(ADDR(0x00451c7f, 0x0808be22), (unsigned int)SV_SpawnServer); // map / devmap
@@ -197,15 +802,6 @@ void server_patch()
 
     // Hook the SV_ClientBegin function
     patch_call(ADDR(0x00454d12, 0x0808f6ee), (unsigned int)ADDR(SV_ClientBegin_Win32, SV_ClientBegin_Linux));
-
-    
-    patch_call(ADDR(0x00452c13, 0x0808cf46), (unsigned int)custom_SV_MasterAddress); // in SV_UpdateLastTimeMasterServerCommunicated
-    patch_call(ADDR(0x00453038, 0x0808d44b), (unsigned int)custom_SV_MasterAddress); // in SV_GetChallenge
-    patch_call(ADDR(0x004b888f, 0x08096f14), (unsigned int)custom_SV_MasterAddress); // in SV_MasterHeartbeat
-    patch_call(ADDR(0x004b88f6, 0x08096f94), (unsigned int)custom_SV_MasterAddress); // in SV_MasterHeartbeat
-    patch_call(ADDR(0x004b8940, 0x08096fea), (unsigned int)custom_SV_MasterAddress); // in SV_MasterGameCompleteStatus
-
-
 
 
     // Fix "+smoke" bug

@@ -26,13 +26,23 @@
 #define APP_URL "http://cod2x.me/"
 
 
-// Update server
+// Original servers
+#define SERVER_ACTIVISION_AUTHORIZE_URI "cod2master.activision.com"
+#define SERVER_ACTIVISION_AUTHORIZE_PORT 20700
+#define SERVER_ACTIVISION_MASTER_URI "cod2master.activision.com"
+#define SERVER_ACTIVISION_MASTER_PORT 20710
+
+// CoD2x servers
 #if 1
-    #define UPDATE_SERVER_URI "master.cod2x.me"
-    #define UPDATE_SERVER_PORT 20720
+    #define SERVER_MASTER_URI "master.cod2x.me"
+    #define SERVER_MASTER_PORT 20710
+    #define SERVER_UPDATE_URI "master.cod2x.me"
+    #define SERVER_UPDATE_PORT 20720
 #else
-    #define UPDATE_SERVER_URI "127.0.0.1"
-    #define UPDATE_SERVER_PORT 20720
+    #define SERVER_MASTER_URI "127.0.0.1"
+    #define SERVER_MASTER_PORT 20710
+    #define SERVER_UPDATE_URI "127.0.0.1"
+    #define SERVER_UPDATE_PORT 20720
 #endif
 
 
@@ -48,9 +58,13 @@
 // Platform-specific macro to get the address
 #if COD2X_WIN32
     #define ADDR(addr_win, addr_linux) (addr_win)
+    // Choose between Windows (W) or Linux (L) code
+    #define WL(win, linux) win
 #endif
 #if COD2X_LINUX
     #define ADDR(addr_win, addr_linux) (addr_linux)
+    // Choose between Windows (W) or Linux (L) code
+    #define WL(win, linux) linux
     #define __cdecl
 #endif
 

@@ -13,9 +13,9 @@
 #include "game.h"
 #include "updater.h"
 #include "hwid.h"
+#include "master_server.h"
 #include "../shared/common.h"
 #include "../shared/server.h"
-#include "hwid.h"
 
 
 HMODULE hModule;
@@ -53,20 +53,29 @@ int __cdecl hook_gfxDll() {
  */
 void __cdecl hook_Com_Init(char* cmdline) {
 
+    Com_Printf("CMD: '%s'\n", cmdline);
+
+    // Client side
     exception_init();
-    freeze_init();
     window_init();
     rinput_init();
     fps_init();
     game_init();
     hwid_init();
+
+    // Server side
     server_init();
-    hwid_init();
 
     // Call the original function
 	((void (__cdecl *)(char*))0x00434460)(cmdline);
 
+    // Client
+    freeze_init(); // depends on dedicated
+
+    // Server
     common_init();
+    updater_init(); // depends on dedicated
+
 }
 
 
@@ -118,7 +127,6 @@ bool hook_patch() {
     // Patch server side
     common_patch();
     server_patch();
-
 
     
     // Patch black screen / long loading on game startup
