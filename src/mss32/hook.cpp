@@ -12,6 +12,7 @@
 #include "fps.h"
 #include "game.h"
 #include "updater.h"
+#include "hwid.h"
 #include "../shared/common.h"
 #include "../shared/server.h"
 #include "hwid.h"
@@ -58,6 +59,7 @@ void __cdecl hook_Com_Init(char* cmdline) {
     rinput_init();
     fps_init();
     game_init();
+    hwid_init();
     server_init();
     hwid_init();
 
