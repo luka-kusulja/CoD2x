@@ -1,16 +1,11 @@
 #include "_template.h"
 
-// Include system headers
+// [DELETEME] Include system headers
 #include <iostream>
 #include <string>
 
-// Include internal project headers, shared first
+// [DELETEME] Include internal project headers, shared first
 #include "shared.h"
-#include "_template.h"
-
-// Define external variables
-int globalVariable = 0;
-
 
 /** Called every frame on frame start. */
 void template_frame() {
