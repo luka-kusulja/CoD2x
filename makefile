@@ -45,6 +45,7 @@ VERSION_COMMA = $(VERSION_MAJOR),$(VERSION_MINOR),$(VERSION_PROTOCOL),$(VERSION_
 # ========================================================================================================
 # Directories and Files
 # ========================================================================================================
+DEBUG ?= 1
 
 # Output directories
 WIN_BIN_DIR = bin/windows
@@ -109,10 +110,18 @@ CFLAGS = -Wall -Wextra -Wno-unused-parameter -g -m32 -lstdc++ -O0
 # -shared: Create a shared library (windows: DLL, linux: SO)
 # -lstdc++: Link with the C++ standard library
 
+# Add macro definition for debug mode
+ifeq ($(DEBUG),1)
+    DEBUG_FLAG = -DDEBUG
+else
+    DEBUG_FLAG =
+endif
+DEVELOPER_FLAG = -DDEVELOPER=\"$(COMPUTERNAME)_$(USERNAME)\"
+
 # Windows toolchain
 WIN_CC = gcc.exe
 WIN_AS = nasm
-WIN_CFLAGS = $(CFLAGS) -mwindows -static
+WIN_CFLAGS = $(CFLAGS) $(DEBUG_FLAG) $(DEVELOPER_FLAG) -mwindows -static
 WIN_LFLAGS = -shared -m32
 WIN_ASFLAGS = -f win32	# Output format for NASM (32-bit Windows)
 WIN_LIBS = -lkernel32 -lwininet -static-libgcc -static-libstdc++ -ldbghelp -lssl -lcrypto -lws2_32
@@ -121,7 +130,7 @@ WIN_LIBS = -lkernel32 -lwininet -static-libgcc -static-libstdc++ -ldbghelp -lssl
 
 # Linux toolchain
 LINUX_CC = gcc
-LINUX_CFLAGS = $(CFLAGS) -fPIC
+LINUX_CFLAGS = $(CFLAGS) $(DEBUG_FLAG) $(DEVELOPER_FLAG) -fPIC
 LINUX_LFLAGS = -shared -m32
 LINUX_LIBS = -ldl -pthread
 # -fPIC: Generate position-independent code
