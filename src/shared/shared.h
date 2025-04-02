@@ -57,9 +57,8 @@
 
 #include "../shared/version.h"
 #include "patch.h"
-#include "cod2.h"
 
-#include "hwid_server.h"
+void escape_string(char* buffer, size_t bufferSize, const void* data, size_t length);
 
 #endif
 
