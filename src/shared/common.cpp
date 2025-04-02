@@ -2,11 +2,77 @@
 
 #include "shared.h"
 
-//
-// This file contains functions that:
-//  - are used on both client and server side
-//  - are used in windows and linux version
-//
+#define MAX_CONSOLE_LINES 32
+#define com_consoleLines ((char**)ADDR(0x00c26110, 0x081a21e0))
+#define com_numConsoleLines (*(int*)ADDR(0x00c27280, 0x081a21d4))
+
+void Com_ParseCommandLine( char *commandLine )
+{
+	bool inq = 0;
+	com_numConsoleLines = 0;
+
+    // CoD2x: Check if whole string is in quotes and remove them
+    if (commandLine[0] == '"' && commandLine[strlen(commandLine) - 1] == '"') {
+        commandLine++;
+        commandLine[strlen(commandLine) - 1] = 0;
+    }
+    // CoD2x: End
+
+	while ( *commandLine )
+	{
+        // CoD2x: Allow escaping quotes in string
+        if (inq && *commandLine == '\\' && *(commandLine + 1) == '"') {
+            commandLine += 2;
+            continue;
+        }
+        // CoD2x: End
+
+		if ( *commandLine == '"' )
+		{
+			inq = !inq;
+		}
+
+        // CoD2x: Loop thru the quote, ignore separators
+        else if ( inq )
+        {
+            commandLine++;
+            continue;
+        }
+        // CoD2x: End
+
+		// look for a + seperating character
+		// if commandLine came from a file, we might have real line seperators
+		if ( *commandLine == '+' || *commandLine == '\n' || /*CoD2x: comma */ *commandLine == ',' )
+		{
+			if ( com_numConsoleLines == MAX_CONSOLE_LINES )
+			{
+				return;
+			}
+
+            // CoD2x: dont add empty lines
+            if (*(commandLine + 1) != '\0' && *(commandLine + 1) != '+' && *(commandLine + 1) != '\n' && *(commandLine + 1) != ',') { // CoD2x: end
+                com_consoleLines[com_numConsoleLines] = commandLine + 1;
+                com_numConsoleLines++;
+            }
+			*commandLine = 0; // terminate previous command
+		}
+		commandLine++;
+	}
+
+    // CoD2x: Debug
+    #if DEBUG && 0
+        for (int i = 0; i < com_numConsoleLines; i++) {
+            Com_Printf("CMD: '%s'\n", com_consoleLines[i]);
+        }
+    #endif
+    // CoD2x: End
+}
+
+void Com_ParseCommandLine_Win32() {
+    char* commandLine;
+    ASM( movr, commandLine, "eax" );
+    Com_ParseCommandLine(commandLine);
+}
 
 
 // Fix animation time from crouch to stand
@@ -56,6 +122,10 @@ void common_patch()
     patch_string_ptr(ADDR(0x00434701 + 1, 0x08062225 + 4), APP_VERSION);                    // originally "1.3"
     patch_string_ptr(ADDR(0x00434706 + 1, 0x0806222d + 4), "CoD2 MP");                      // original
     patch_string_ptr(ADDR(0x0043470b + 1, 0x08062235 + 3), "%s %s build %s %s");            // original
+
+
+    // Hook Com_ParseCommandLine
+    patch_call(ADDR(0x004344a8, 0x080620fd), (unsigned int)ADDR(Com_ParseCommandLine_Win32, Com_ParseCommandLine));
 
 
     // Value of cvar /shortversion   ->   "1.3"
