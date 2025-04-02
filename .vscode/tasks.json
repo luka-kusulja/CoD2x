@@ -72,13 +72,28 @@
             }
         },
         {
-            "label": "Build All",
-            "dependsOn": [
-                "Build MSS32",
-                "Build CoD2x Win",
-                "Build CoD2x Linux"
-            ],
-            "dependsOrder": "sequence"
+            "label": "Build MSS32 RELEASE",
+            "type": "shell",
+            "command": "mingw32-make.exe",
+            "args": ["build_mss32_win", "DEBUG=0"],
+            "group": {
+                "kind": "build"
+            },
+            "problemMatcher": ["$gcc"],
+            "options": {
+                "env": {
+                    "PATH": "${workspaceFolder}/tools/mingw/bin;${env:PATH}"
+                }
+            }
+        },
+        {
+            "label": "Build Linux RELEASE",
+            "type": "shell",
+            "command": "wsl",
+            "args": ["make", "build_cod2x_linux", "DEBUG=0"],
+            "group": {
+                "kind": "build"
+            },
         }
     ]
 }

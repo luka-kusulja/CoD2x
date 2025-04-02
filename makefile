@@ -174,6 +174,10 @@ $(WIN_MSS32_TARGET): $(WIN_MSS32_OBJECTS) $(WIN_MSS32_OBJ_DIR)/version.res
 	@echo "Linking $@..."
 	$(WIN_CC) $(WIN_LFLAGS) -o $@ $^ $(WIN_LIBS) $(WIN_MSS32_SRC_DIR)/mss32.def
 	@echo   Done.
+
+	@echo.
+	@if "$(DEBUG)"=="0" ( echo RELEASE, stripping debug info from $@... && strip $@ ) else ( echo DEBUG=1, skipping strip )
+	@echo   Done.
 	@echo.
 
 # Compile C++ files
