@@ -18,6 +18,14 @@ wsl bash -c "cp -rv \"%WSLPATH%/bin/linux/libCoD2x.so\" ~/CoD2x/"
 :: Check if ~/CoD2x/main exists; if not, create it and copy files from the Windows "main" directory
 wsl bash -c "if [ ! -d ~/CoD2x/main ]; then echo 'Directory ~/CoD2x/main does not exist, copying...'; mkdir -p ~/CoD2x/main && cp -ru \"%WSLPATH%/bin/windows/main\"/* ~/CoD2x/main && echo 'Files copied successfully.'; else echo 'Directory ~/CoD2x/main already exists, skipping.'; fi"
 
+:: Update config_mp.cfg by coping the Windows config_mp.cfg to the WSL directory
+echo Updating config_mp.cfg...
+wsl bash -c "cp -v \"%WSLPATH%/bin/windows/main/players/default/config_mp.cfg\" ~/CoD2x/main/players/default/"
+
+:: Remove /home/wsl/.callofduty2 folder
+echo Removing /home/wsl/.callofduty2 folder...
+wsl bash -c "rm -rf ~/.callofduty2"
+
 echo.
 echo Files:
 wsl bash -c "cd ~/CoD2x && ls && pwd"
