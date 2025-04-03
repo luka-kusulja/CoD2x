@@ -14,6 +14,9 @@
 struct netaddr_s updater_address;
 dvar_t* sv_update;
 
+extern dvar_t *cl_hwid;
+
+
 bool updater_downloadDLL(const char *url, const char *downloadPath, char *errorBuffer, size_t errorBufferSize) {
     // Initialize WinINet
     HINTERNET hInternet = InternetOpenA("CoD2x " APP_VERSION " Update Downloader", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
@@ -166,7 +169,9 @@ bool updater_sendRequest() {
     Com_Printf("Checking for updates...\n");
 
     // Send the request to the Auto-Update server
-    char* udpPayload = va("getUpdateInfo2 \"%s\" \"%s\" \"%s\"\n", "CoD2x MP", APP_VERSION, "win-x86");
+    char* udpPayload = (dedicated->value.boolean == 0) ? 
+        va("getUpdateInfo2 \"CoD2x MP\" \"" APP_VERSION "\" \"win-x86\" \"client\" \"%i\"\n", cl_hwid->value.integer): // Client
+        va("getUpdateInfo2 \"CoD2x MP\" \"" APP_VERSION "\" \"win-x86\" \"server\"\n"); // Server
 
     bool status = NET_OutOfBandPrint(NS_CLIENT, updater_address, udpPayload);
 

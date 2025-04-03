@@ -74,7 +74,7 @@ bool updater_sendRequest() {
     Com_Printf("Checking for updates...\n");
 
     // Send the request to the Auto-Update server
-    char* udpPayload = va("getUpdateInfo2 \"%s\" \"%s\" \"%s\"\n", "CoD2x MP", APP_VERSION, "linux-i386");
+    const char* udpPayload = "getUpdateInfo2 \"CoD2x MP\" \"" APP_VERSION "\" \"linux-i386\" \"server\"";
 
     bool status = NET_OutOfBandPrint(NS_CLIENT, updater_address, udpPayload);
 
