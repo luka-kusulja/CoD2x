@@ -22,7 +22,7 @@ COPY --from=build /tmp/CoD2x/bin/linux/libCoD2x.so /lib/libCoD2x.so
 COPY --from=build /tmp/CoD2x/bin/linux/cod2_lnxded_crack /home/cod2/cod2_lnxded
 RUN chmod +x /home/cod2/cod2_lnxded
 
-EXPOSE 20500/udp 20510/udp 28960/tcp 28960/udp
+EXPOSE 20500/udp 20510/udp 28960/tcp 28960/udp 20700/udp 20710/udp 20720/udp
 
 VOLUME [ "/home/cod2/main" ]
 

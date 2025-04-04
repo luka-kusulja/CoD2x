@@ -8,6 +8,9 @@ services:
       - "20510:20510/udp"
       - "28960:28960/tcp"
       - "28960:28960/udp"
+      - "20700:20700/udp"
+      - "20710:20710/udp"
+      - "20720:20720/udp"
     volumes:
       - ./main:/home/cod2/main
     command:
