@@ -1,26 +1,34 @@
-#include "shared.h"
+#include "updater.h"
 
 #include <windows.h>
 #include <wininet.h>
+
+#include "shared.h"
+
 
 #define cl_updateAvailable (*(dvar_t **)(0x0096b644))
 #define cl_updateVersion (*(dvar_t **)(0x0096b640))
 #define cl_updateOldVersion (*(dvar_t **)(0x0096b64c))
 #define cl_updateFiles (*(dvar_t **)(0x0096b5d4))
 
+struct netaddr_s updater_address;
+dvar_t* sv_update;
 
-bool updater_downloadDLL(const char *url, const char *downloadPath) {
+extern dvar_t *cl_hwid;
+
+
+bool updater_downloadDLL(const char *url, const char *downloadPath, char *errorBuffer, size_t errorBufferSize) {
     // Initialize WinINet
     HINTERNET hInternet = InternetOpenA("CoD2x " APP_VERSION " Update Downloader", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
     if (!hInternet) {
-        showCoD2ErrorWithLastError(ERR_DROP, "Failed to initialize WinINet.");
+        snprintf(errorBuffer, errorBufferSize, "Failed to initialize WinINet.");
         return 0;
     }
 
     // Open URL
     HINTERNET hFile = InternetOpenUrlA(hInternet, url, NULL, 0, INTERNET_FLAG_RELOAD, 0);
     if (!hFile) {
-        showCoD2ErrorWithLastError(ERR_DROP, "Failed to open URL '%s'.", url);
+        snprintf(errorBuffer, errorBufferSize, "Failed to open URL '%s'.", url);
         InternetCloseHandle(hInternet);
         return 0;
     }
@@ -30,7 +38,7 @@ bool updater_downloadDLL(const char *url, const char *downloadPath) {
     DWORD statusCodeSize = sizeof(statusCode);
 
     if (!HttpQueryInfoA(hFile, HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER, &statusCode, &statusCodeSize, NULL)) {
-        showCoD2ErrorWithLastError(ERR_DROP, "Failed to query HTTP status code for URL '%s'.", url);
+        snprintf(errorBuffer, errorBufferSize, "Failed to query HTTP status code for URL '%s'.", url);
         InternetCloseHandle(hFile);
         InternetCloseHandle(hInternet);
         return 0;
@@ -38,7 +46,7 @@ bool updater_downloadDLL(const char *url, const char *downloadPath) {
 
     // Handle HTTP errors (e.g., 404 Not Found)
     if (statusCode != 200) {
-        Com_Error(ERR_DROP, "HTTP error %lu encountered for URL '%s'.", statusCode, url);
+        snprintf(errorBuffer, errorBufferSize, "HTTP error %lu encountered for URL '%s'.", statusCode, url);
         InternetCloseHandle(hFile);
         InternetCloseHandle(hInternet);
         return 0;
@@ -56,7 +64,7 @@ bool updater_downloadDLL(const char *url, const char *downloadPath) {
     );
 
     if (hLocalFile == INVALID_HANDLE_VALUE) {
-        showCoD2ErrorWithLastError(ERR_DROP, "Failed to create file at '%s'.", downloadPath);
+        snprintf(errorBuffer, errorBufferSize, "Failed to create file at '%s'.", downloadPath);
         InternetCloseHandle(hFile);
         InternetCloseHandle(hInternet);
         return 0;
@@ -69,7 +77,7 @@ bool updater_downloadDLL(const char *url, const char *downloadPath) {
 
     while (InternetReadFile(hFile, buffer, sizeof(buffer), &bytesRead) && bytesRead > 0) {
         if (!WriteFile(hLocalFile, buffer, bytesRead, &bytesWritten, NULL)) {
-            showCoD2ErrorWithLastError(ERR_DROP, "Failed to write to file '%s'.", downloadPath);
+            snprintf(errorBuffer, errorBufferSize, "Failed to write to file '%s'.", downloadPath);
             CloseHandle(hLocalFile);
             InternetCloseHandle(hFile);
             InternetCloseHandle(hInternet);
@@ -77,7 +85,7 @@ bool updater_downloadDLL(const char *url, const char *downloadPath) {
         }
 
         if (bytesWritten != bytesRead) {
-            SHOW_ERROR("Mismatch in bytes read and written to file '%s'.", downloadPath);
+            snprintf(errorBuffer, errorBufferSize, "Mismatch in bytes read and written to file '%s'.", downloadPath);
             CloseHandle(hLocalFile);
             InternetCloseHandle(hFile);
             InternetCloseHandle(hInternet);
@@ -94,12 +102,52 @@ bool updater_downloadDLL(const char *url, const char *downloadPath) {
 }
 
 
+bool updater_downloadAndReplaceDllFile(const char *url, char *errorBuffer, size_t errorBufferSize) { 
+
+    const char destinationFileName[] = "mss32_new.dll";
+    const char oldFileName[] = "mss32_old.dll";
+    const char currentFileName[] = "mss32.dll";
+
+    char dllFilePathNew[sizeof(EXE_DIRECTORY_PATH) + sizeof(destinationFileName) + 1];
+    char dllFilePathOld[sizeof(EXE_DIRECTORY_PATH) + sizeof(oldFileName) + 1];
+    char dllFilePathCurrent[sizeof(EXE_DIRECTORY_PATH) + sizeof(currentFileName) + 1];
+
+    // Construct the destination path (same directory as the executable)
+    snprintf(dllFilePathNew, sizeof(dllFilePathNew), "%s\\%s", EXE_DIRECTORY_PATH, destinationFileName);  
+    snprintf(dllFilePathOld, sizeof(dllFilePathOld), "%s\\%s", EXE_DIRECTORY_PATH, oldFileName);
+    snprintf(dllFilePathCurrent, sizeof(dllFilePathCurrent), "%s\\%s", EXE_DIRECTORY_PATH, currentFileName);
 
 
-struct netaddr_s updater_address;
-//#define updater_address (*((struct netaddr_s*)0x00966d48))
+    // Download the DLL
+    bool ok = updater_downloadDLL(url, dllFilePathNew, errorBuffer, errorBufferSize);
+    if (!ok) return false;
 
-bool autoUpdateServer_IsDone = 0;
+
+    // Rename the existing DLL
+    if (!MoveFileEx(dllFilePathCurrent, dllFilePathOld, MOVEFILE_REPLACE_EXISTING)) {
+        snprintf(errorBuffer, errorBufferSize, "Error renaming DLL from '%s' to '%s'.", dllFilePathCurrent, dllFilePathOld);
+
+        return false;
+    }
+
+    // Rename the new DLL to the original name
+    if (!MoveFileEx(dllFilePathNew, dllFilePathCurrent, FALSE)) {
+        snprintf(errorBuffer, errorBufferSize, "Error copying new DLL from '%s' to '%s'.", dllFilePathNew, dllFilePathCurrent);
+        
+        // Attempt to restore the original DLL name
+        MoveFileEx(dllFilePathOld, dllFilePathCurrent, MOVEFILE_REPLACE_EXISTING);
+        return false;
+    }
+
+    // Schedule the deletion of the old DLL
+    // Since the DLL is locked by the application, we can't delete it immediately
+    if (!MoveFileEx(dllFilePathOld, NULL, MOVEFILE_DELAY_UNTIL_REBOOT)) {
+        snprintf(errorBuffer, errorBufferSize, "Error scheduling old DLL deletion: '%s'.", dllFilePathOld);
+        return false;
+    }
+
+    return true;
+}
 
 
 
@@ -107,27 +155,29 @@ bool autoUpdateServer_IsDone = 0;
 // Original func: 0x0041162f 
 bool updater_sendRequest() {
 
-    if (autoUpdateServer_IsDone)
-        return 0;
-
-    Com_DPrintf("Resolving AutoUpdate Server...\n");
-
-    if (!NET_StringToAdr(UPDATE_SERVER_URI, &updater_address))
+    Com_DPrintf("Resolving AutoUpdate Server %s...\n", SERVER_UPDATE_URI);
+    if (!NET_StringToAdr(SERVER_UPDATE_URI, &updater_address))
     {
-        Com_DPrintf("\nFailed to resolve any Auto-update servers.\n");
+        Com_Printf("\nFailed to resolve AutoUpdate server %s.\n", SERVER_UPDATE_URI);
         return 0;
     }
 
-    updater_address.port = (uint16_t)((UPDATE_SERVER_PORT >> 8) | (UPDATE_SERVER_PORT << 8)); // Swap the port bytes
-    
-    Com_DPrintf("%i.%i.%i.%i:%i\n", updater_address.ip[0], updater_address.ip[1], updater_address.ip[2], updater_address.ip[3], UPDATE_SERVER_PORT);
+    updater_address.port = BigShort(SERVER_UPDATE_PORT); // Swap the port bytes
+
+    Com_DPrintf("AutoUpdate resolved to %s\n", NET_AdrToString(updater_address));
+
+    Com_Printf("Checking for updates...\n");
 
     // Send the request to the Auto-Update server
-    char* udpPayload = va("getUpdateInfo2 \"%s\" \"%s\" \"%s\"\n", "CoD2x MP", APP_VERSION, "win-x86");
+    char* udpPayload = (dedicated->value.boolean == 0) ? 
+        va("getUpdateInfo2 \"CoD2x MP\" \"" APP_VERSION "\" \"win-x86\" \"client\" \"%i\"\n", cl_hwid->value.integer): // Client
+        va("getUpdateInfo2 \"CoD2x MP\" \"" APP_VERSION "\" \"win-x86\" \"server\"\n"); // Server
 
-    autoUpdateServer_IsDone = NET_OutOfBandPrint(udpPayload, 0, updater_address);
-    
-    return autoUpdateServer_IsDone;
+    bool status = NET_OutOfBandPrint(NS_CLIENT, updater_address, udpPayload);
+
+    Com_Printf("-----------------------------------\n");
+
+    return status;
 }
 
 
@@ -140,36 +190,55 @@ void updater_updatePacketResponse(struct netaddr_s addr)
         return;
     }
 
-    UINT16 port = (((UINT32)((BYTE)(addr.port >> 8))) + (((UINT32)addr.port) << 8));
+    Com_DPrintf("Auto-Updater response from %s\n", NET_AdrToString(addr));
     
-    Com_DPrintf("Auto-Updater response from %i.%i.%i.%i:%i\n", addr.ip[0], addr.ip[1], addr.ip[2], addr.ip[3], port);
-    
-    if (updater_address.type != addr.type || updater_address.port != addr.port || memcmp(updater_address.ip, addr.ip, 0x4) != 0)
+    if (NET_CompareBaseAdrSigned(&updater_address, &addr))
     {
         Com_DPrintf("Received update packet from unexpected IP.\n");
         return;
     }
 
-    Com_DPrintf("UDP payload: '%s \"%s\" \"%s\" \"%s\"'\n", Cmd_Argv(0), Cmd_Argv(1), Cmd_Argv(2), Cmd_Argv(3));
-
+    Com_Printf("-----------------------------------\n");
 
     const char* updateAvailableNumber = Cmd_Argv(1);
     int updateAvailable = atol(updateAvailableNumber);
-    Dvar_SetBool(cl_updateAvailable, (updateAvailable != 0));
 
-    if (cl_updateAvailable->value.boolean == 0)
-        return;
-    
-    const char* updateFiles = Cmd_Argv(2);
-    Dvar_SetString(cl_updateFiles, updateFiles);
-    
-    const char* newVersionString = Cmd_Argv(3);  
-    Dvar_SetString(cl_updateVersion, newVersionString);
+    if (updateAvailable) {
+        const char* updateFile = Cmd_Argv(2);
+        const char* newVersionString = Cmd_Argv(3);
+        
+        Com_Printf("CoD2x: Update available: %s -> %s\n", APP_VERSION, newVersionString);
 
+        // Server
+        if (dedicated->value.boolean > 0) {
+            Com_Printf("Downloading file '%s'...\n", updateFile);
+            char errorBuffer[1024];
+            bool ok = updater_downloadAndReplaceDllFile(updateFile, errorBuffer, sizeof(errorBuffer));  
+            if (ok) {
+                Com_Printf("Successfully downloaded and replaced file.\n");
+                Com_Printf("The update will take effect after the next server restart.\n");
+            } else {
+                Com_Printf("Failed to download and replace file.\n");
+                Com_Printf("Error: %s\n", errorBuffer);
+            }
 
-    Dvar_SetString(cl_updateOldVersion, APP_VERSION);
+        // Client
+        } else {
+            Dvar_SetBool(cl_updateAvailable, 1);
+            Dvar_SetString(cl_updateFiles, updateFile);
+            Dvar_SetString(cl_updateVersion, newVersionString);
+            Dvar_SetString(cl_updateOldVersion, APP_VERSION);
+        }
 
-    return;
+    } else {
+        Com_Printf("CoD2x: No updates available.\n");
+
+        if (dedicated->value.boolean == 0) {
+            Dvar_SetBool(cl_updateAvailable, 0);
+        }
+    }
+
+    Com_Printf("-----------------------------------\n");
 }
 
 
@@ -178,71 +247,52 @@ void updater_updatePacketResponse(struct netaddr_s addr)
 // This function is called when the user confirms the update dialog
 // Original func: 0x0053bc40
 void updater_dialogConfirmed() {
-
-    // Define the URL of the DLL file and the temporary download path
-    //const char *url = "https://cod2x.me/cod2x/mss32.dll";
-    const char *url = cl_updateFiles->value.string;
-    const char destinationFileName[] = "mss32_new.dll";
-    const char oldFileName[] = "mss32_old.dll";
-    const char currentFileName[] = "mss32.dll";
-
-    char exePath[MAX_PATH];
-    char exeDirectory[MAX_PATH];
-    char dllFilePathNew[sizeof(exeDirectory) + sizeof(destinationFileName) + 1];
-    char dllFilePathOld[sizeof(exeDirectory) + sizeof(oldFileName) + 1];
-    char dllFilePathCurrent[sizeof(exeDirectory) + sizeof(currentFileName) + 1];
-
-    // Get the full path of the current executable
-    if (GetModuleFileNameA(NULL, exePath, MAX_PATH) == 0) {
-        showCoD2ErrorWithLastError(ERR_DROP, "Failed to get the executable path.");
-        return;
-    }
-
-    // Extract the directory from the executable path
-    strncpy(exeDirectory, exePath, MAX_PATH);
-    char* lastBackslash = strrchr(exeDirectory, '\\');
-    if (lastBackslash) {
-        *lastBackslash = '\0'; // Terminate the string at the last backslash
+    char errorBuffer[1024];
+    bool ok = updater_downloadAndReplaceDllFile(cl_updateFiles->value.string, errorBuffer, sizeof(errorBuffer));
+    if (ok) {
+        // Restart the application
+        ShellExecute(NULL, "open", EXE_PATH, NULL, NULL, SW_SHOWNORMAL);
+        ExitProcess(0);
     } else {
-        showCoD2ErrorWithLastError(ERR_DROP, "Failed to determine executable directory.");
-        return;
+        Com_Error(ERR_DROP, "Failed to download and replace file.\n\n%s", errorBuffer);
+    }
+}
+
+
+
+
+/** Called only once on game start after common inicialization. Used to initialize variables, cvars, etc. */
+void updater_init() {
+
+    for (int i = 0; i <= 1; i++)
+    {
+        dvarFlags_e flags = i == 0 ? 
+            (dvarFlags_e)(DVAR_LATCH | DVAR_CHANGEABLE_RESET) : // allow the value to be changed via cmd when starting the game
+            (dvarFlags_e)(DVAR_ROM | DVAR_CHANGEABLE_RESET);    // then make it read-only to avoid changes
+
+        sv_update = Dvar_RegisterBool("sv_update", true, flags);
     }
 
-    // Construct the destination path (same directory as the executable)
-    snprintf(dllFilePathNew, sizeof(dllFilePathNew), "%s\\%s", exeDirectory, destinationFileName);  
-    snprintf(dllFilePathOld, sizeof(dllFilePathOld), "%s\\%s", exeDirectory, oldFileName);
-    snprintf(dllFilePathCurrent, sizeof(dllFilePathCurrent), "%s\\%s", exeDirectory, currentFileName);
-
-
-    // Download the DLL
-    bool ok = updater_downloadDLL(url, dllFilePathNew);
-    if (!ok) return;
-
-
-
-    // Step 1: Rename the existing DLL
-    if (!MoveFileEx(dllFilePathCurrent, dllFilePathOld, MOVEFILE_REPLACE_EXISTING)) {
-        showCoD2ErrorWithLastError(ERR_DROP, "Error renaming DLL from '%s' to '%s'.", dllFilePathCurrent, dllFilePathOld);
-        return;
+    // Server
+    if (dedicated->value.boolean > 0) {
+        // Send the request to the Auto-Update server
+        if (sv_update->value.boolean) {
+            updater_sendRequest();
+        }
+    } else {
+        updater_sendRequest();
     }
+}
 
-    // Step 2: Rename the new DLL to the original name
-    if (!MoveFileEx(dllFilePathNew, dllFilePathCurrent, FALSE)) {
-        showCoD2ErrorWithLastError(ERR_DROP, "Error copying new DLL from '%s' to '%s'.", dllFilePathNew, dllFilePathCurrent);
-        
-        // Attempt to restore the original DLL name
-        MoveFileEx(dllFilePathOld, dllFilePathCurrent, MOVEFILE_REPLACE_EXISTING);
-        return;
-    }
+/** Called before the entry point is called. Used to patch the memory. */
+void updater_patch() {
 
-    // Step 3: Schedule the deletion of the old DLL
-    // Since the DLL is locked by the application, we can't delete it immediately
-    if (!MoveFileEx(dllFilePathOld, NULL, MOVEFILE_DELAY_UNTIL_REBOOT)) {
-        showCoD2ErrorWithLastError(ERR_DROP, "Error scheduling old DLL deletion: '%s'.", dllFilePathOld);
-        return;
-    }
+    // Hook function that was called when update UDP packet was received from update server
+    patch_call(0x0040ef9c, (unsigned int)&updater_updatePacketResponse);
+    // Hook function was was called when user confirm the update dialog (it previously open url)
+    patch_jump(0x0053bc40, (unsigned int)&updater_dialogConfirmed);
 
-    // Step 4: Restart the application
-    ShellExecute(NULL, "open", exePath, NULL, NULL, SW_SHOWNORMAL);
-    ExitProcess(0);
+    // Disable original call to function that sends request to update server
+    patch_nop(0x0041162f, 5);
+
 }

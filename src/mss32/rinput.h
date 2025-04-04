@@ -11,7 +11,7 @@ bool rinput_is_enabled();
 void rinput_get_last_offset(long* x, long* y);
 void rinput_reset_offset();
 void rinput_mouse_loop();
-void rinput_hook_init_cvars();
-void rinput_hook();
+void rinput_init();
+void rinput_patch();
 
 #endif

@@ -29,12 +29,12 @@ VERSION_PROTOCOL = 2
 
 # CoD2x patch version
 # Should be increased when new version is released and the changes are backward compatible
-VERSION_PATCH = 3
+VERSION_PATCH = 4
 
 # CoD2x test version
 # Should be increased when new version is released and the changes are backward compatible
-VERSION_TEST =
-VERSION_IS_TEST = 0
+VERSION_TEST = -test.1
+VERSION_IS_TEST = 1
 
 # Full version string
 # Example "1.4.1.1"  or  "1.4.1.1-test.1"
@@ -45,6 +45,7 @@ VERSION_COMMA = $(VERSION_MAJOR),$(VERSION_MINOR),$(VERSION_PROTOCOL),$(VERSION_
 # ========================================================================================================
 # Directories and Files
 # ========================================================================================================
+DEBUG ?= 1
 
 # Output directories
 WIN_BIN_DIR = bin/windows
@@ -109,19 +110,27 @@ CFLAGS = -Wall -Wextra -Wno-unused-parameter -g -m32 -lstdc++ -O0
 # -shared: Create a shared library (windows: DLL, linux: SO)
 # -lstdc++: Link with the C++ standard library
 
+# Add macro definition for debug mode
+ifeq ($(DEBUG),1)
+    DEBUG_FLAG = -DDEBUG
+else
+    DEBUG_FLAG =
+endif
+DEVELOPER_FLAG = -DDEVELOPER=\"$(COMPUTERNAME)_$(USERNAME)\"
+
 # Windows toolchain
 WIN_CC = gcc.exe
 WIN_AS = nasm
-WIN_CFLAGS = $(CFLAGS) -mwindows -static
+WIN_CFLAGS = $(CFLAGS) $(DEBUG_FLAG) $(DEVELOPER_FLAG) -mwindows -static
 WIN_LFLAGS = -shared -m32
 WIN_ASFLAGS = -f win32	# Output format for NASM (32-bit Windows)
-WIN_LIBS = -lkernel32 -lwininet -static-libgcc -static-libstdc++
+WIN_LIBS = -lkernel32 -lwininet -static-libgcc -static-libstdc++ -ldbghelp -lole32 -loleaut32 -luuid
 # -mwindows: Link with the Windows GUI subsystem (no console)
 # -static: Link libraries statically
 
 # Linux toolchain
 LINUX_CC = gcc
-LINUX_CFLAGS = $(CFLAGS) -fPIC
+LINUX_CFLAGS = $(CFLAGS) $(DEBUG_FLAG) $(DEVELOPER_FLAG) -fPIC
 LINUX_LFLAGS = -shared -m32
 LINUX_LIBS = -ldl -pthread
 # -fPIC: Generate position-independent code
@@ -159,11 +168,24 @@ $(SHARED_SRC_DIR)/version.h: makefile
 build_mss32_win: $(SHARED_SRC_DIR)/version.h $(WIN_MSS32_TARGET)
 	@echo "MSS32 (Windows) build complete."
 	@echo.
+	@echo.
+	@echo.
 
-# Linking with resource file
+# Linking files into mss32.dll
 $(WIN_MSS32_TARGET): $(WIN_MSS32_OBJECTS) $(WIN_MSS32_OBJ_DIR)/version.res
+	@echo Renaming '$@' to ensure it is not locked by another process...
+	@-if exist "$(subst /,\,$(abspath $@.2.old))" move "$(subst /,\,$(abspath $@.2.old))" "$(subst /,\,$(abspath $@.3.old))"
+	@-if exist "$(subst /,\,$(abspath $@.1.old))" move "$(subst /,\,$(abspath $@.1.old))" "$(subst /,\,$(abspath $@.2.old))"
+	@-if exist "$(subst /,\,$(abspath $@))" move "$(subst /,\,$(abspath $@))" "$(subst /,\,$(abspath $@.1.old))"
+	@echo   Done.
+
+	@echo.
 	@echo "Linking $@..."
 	$(WIN_CC) $(WIN_LFLAGS) -o $@ $^ $(WIN_LIBS) $(WIN_MSS32_SRC_DIR)/mss32.def
+	@echo   Done.
+
+	@echo.
+	@if "$(DEBUG)"=="0" ( echo RELEASE, stripping debug info from $@... && strip $@ ) else ( echo DEBUG=1, skipping strip )
 	@echo   Done.
 	@echo.
 

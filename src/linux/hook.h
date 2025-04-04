@@ -1,6 +1,6 @@
 #ifndef HOOK_H
 #define HOOK_H
 
-bool hook_load();
+bool hook_patch();
 
 #endif

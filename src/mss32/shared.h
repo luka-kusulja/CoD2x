@@ -4,6 +4,7 @@
 
 #include "../shared/shared.h"
 #include "hook.h"
+#include "main.h"
 
 #include <windows.h>
 #include <stdio.h>  // For snprintf

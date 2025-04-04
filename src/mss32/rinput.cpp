@@ -1,4 +1,5 @@
 #include "rinput.h"
+
 #include "shared.h"
 
 
@@ -326,16 +327,16 @@ void rinput_mouse_loop() {
 
     
 
-// Called when the game initializes cvars (Com_Init)
-void rinput_hook_init_cvars() {
+/** Called only once on game start after common inicialization. Used to initialize variables, cvars, etc. */
+void rinput_init() {
     m_rinput = Dvar_RegisterInt("m_rinput", 0, 0, 2, (enum dvarFlags_e)(DVAR_ARCHIVE | DVAR_LATCH | DVAR_CHANGEABLE_RESET));
 
     m_rinput_hz = Dvar_RegisterInt("m_rinput_hz", 0, 0, INT32_MAX, (enum dvarFlags_e)(DVAR_ROM | DVAR_CHANGEABLE_RESET));
     m_rinput_hz_max = Dvar_RegisterInt("m_rinput_hz_max", 0, 0, INT32_MAX, (enum dvarFlags_e)(DVAR_ROM | DVAR_CHANGEABLE_RESET));
 }
 
-// Called before the game is started
-void rinput_hook() {
+/** Called before the entry point is called. Used to patch the memory. */
+void rinput_patch() {
     InitializeCriticalSection(&rinput_lock);
 
     // Initialize time measurement

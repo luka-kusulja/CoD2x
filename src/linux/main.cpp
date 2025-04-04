@@ -1,4 +1,3 @@
-#include "shared.h"
 #include "main.h"
 
 #include <stdio.h>
@@ -11,6 +10,7 @@
 #include <dlfcn.h> // dladdr
 #include <libgen.h> // dirname
 
+#include "shared.h"
 
 const char* LIB_PATH = NULL;
 const char* LIB_FOLDER_PATH = NULL;
@@ -59,7 +59,7 @@ void preload_init() {
     printf("Library directory: %s\n", LIB_FOLDER_PATH);
 
 
-    hook_load();
+    hook_patch();
 
     return;
 }

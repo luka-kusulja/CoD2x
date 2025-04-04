@@ -1,8 +1,10 @@
 #include "game.h"
+
+#include <windows.h>
+
 #include "shared.h"
 #include "../shared/common.h"
 
-#include <windows.h>
 
 #define clientState                   (*((clientState_e*)0x00609fe0))
 #define sv_cheats                     (*((dvar_t**)0x00c5c5cc))
@@ -11,8 +13,8 @@ static int clientStateLast = -1;
 dvar_t* g_cod2x = NULL;
 bool firstTime = true;
 
-// Called when the game initializes cvars (Com_Init)
-void game_hook_init_cvars() {
+/** Called only once on game start after common inicialization. Used to initialize variables, cvars, etc. */
+void game_init() {
 
     // Register USERINFO cvar that is automatically appended to the client's userinfo string sent to the server
     Dvar_RegisterInt("protocol_cod2x", APP_VERSION_PROTOCOL, APP_VERSION_PROTOCOL, APP_VERSION_PROTOCOL, (enum dvarFlags_e)(DVAR_USERINFO | DVAR_ROM));
@@ -24,8 +26,8 @@ void game_hook_init_cvars() {
 }
 
 
-// Called every frame, before the original function
-void game_hook_frame() {
+/** Called every frame on frame start. */
+void game_frame() {
 
     if (clientState != clientStateLast) {
         Com_DPrintf("Client state changed from %d:%s to %d:%s\n", clientStateLast, get_client_state_name(clientStateLast), clientState, get_client_state_name(clientState));
@@ -123,7 +125,8 @@ char** Sys_ListFiles(char* extension, int32_t* numFiles, int32_t wantsubs) {
 }
 
 
-void game_hook() {
+/** Called before the entry point is called. Used to patch the memory. */
+void game_patch() {
 
     patch_call(0x00424869, (unsigned int)Sys_ListFiles);
 }

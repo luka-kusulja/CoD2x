@@ -28,7 +28,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/bin/windows/CoD2MP_s.exe",
-            "args": ["${config:CoD2x.launch_args_win_server}"],
+            "args": ["${config:CoD2x.launch_args_win_client_server}"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/bin/windows",
             "environment": [],
@@ -44,6 +44,25 @@
             ],
             "preLaunchTask": "Build MSS32",
             "internalConsoleOptions": "neverOpen"
+        },
+        {
+            "name": "Win server",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/bin/windows/CoD2MP_s.exe",
+            "args": ["${config:CoD2x.launch_args_win_server}"],
+            "cwd": "${workspaceFolder}/bin/windows",
+            "externalConsole": true,
+            "MIMode": "gdb",
+            "miDebuggerPath": "${workspaceFolder}/tools/mingw/bin/gdb.exe",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "Build MSS32"
         },
         {
             "name": "Linux server",

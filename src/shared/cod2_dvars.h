@@ -2,6 +2,13 @@
 #define COD2_DVARS_H
 
 
+#define dedicated (*(dvar_t **)(ADDR(0x00c22f00, 0x084a8780)))
+#define sv_maxclients (*(dvar_t **)(ADDR(0x00d52810, 0x0849f74c)))
+#define sv_packet_info (*((dvar_s**)( ADDR(0x00d52858, 0x0849f798) )))
+#define net_lanauthorize (*((dvar_s**)( ADDR(0x00c8fb14, 0x081fa514) )))
+#define showpackets (*((dvar_s**)( ADDR(0x00c84ae8, 0x081fa500) )))
+
+
 enum dvarFlags_e : uint16_t
 {
     DVAR_NOFLAG = 0x0,
@@ -116,6 +123,10 @@ inline void Dvar_SetFloat(struct dvar_s* dvar, float value) {
 }
 inline void Dvar_SetString(struct dvar_s* dvar, const char* value) {
     ((void (__cdecl*)(struct dvar_s*, const char*))ADDR(0x00438ca0, 0x080b4a80))(dvar, value);
+}
+
+inline dvar_t* Dvar_GetDvarByName(const char* name) {
+    return ((dvar_t* (__cdecl*)(const char*))ADDR(0x004373a0, 0x080b2e54))(name);
 }
 
 

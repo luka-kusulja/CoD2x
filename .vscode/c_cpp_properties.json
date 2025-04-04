@@ -6,7 +6,7 @@
                 "${workspaceFolder}/tools/mingw/i686-w64-mingw32/include",
                 "${workspaceFolder}/src/mss32"
             ],
-            "defines": ["_WIN32=1"],
+            "defines": ["_WIN32=1", "DEBUG=1", "DEVELOPER=\"${env:COMPUTERNAME}_${env:USERNAME}\""],
             "compilerPath": "${workspaceFolder}/tools/mingw/bin/gcc.exe",
             "cStandard": "c99",
             "cppStandard": "c++17",
@@ -27,7 +27,7 @@
                 "${workspaceFolder}/src/mss32",
                 "${workspaceFolder}/tools/linux_include"
             ],
-            "defines": ["_WIN32=0"],
+            "defines": ["_WIN32=0", "DEBUG=1", "DEVELOPER=\"${env:COMPUTERNAME}_${env:USERNAME}\""],
             "compilerPath": "${workspaceFolder}/tools/mingw/bin/gcc.exe",
             "cStandard": "c99",
             "cppStandard": "c++17",
