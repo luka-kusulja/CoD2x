@@ -43,6 +43,10 @@ inline void Cbuf_AddText(const char* text) {
     #endif
 }
 
+/** Immediately executes a command string. */
+inline void Cmd_ExecuteString(const char *text){
+    ASM_CALL(RETURN_VOID, ADDR(0x004214c0, 0x080608a6), 1, PUSH(text));
+}
 
 inline void Cmd_TokenizeString(const char *text_in){
     #if COD2X_WIN32
@@ -65,6 +69,19 @@ inline void Cmd_AddCommand(const char *command, void (*func)()) {
         ((void(*)(const char *, void (*)()))0x80606b6)(command, func);
     #endif
 }
+
+
+// Register a new command
+inline void Cmd_RemoveCommand(const char *command) {
+    #if COD2X_WIN32
+        ((void(*)(const char *))0x00421370)(command);
+    #endif
+    #if COD2X_LINUX
+        ((void(*)(const char *))0x0806072e)(command);
+    #endif
+}
+
+
 
 
 #endif

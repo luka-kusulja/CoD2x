@@ -4,6 +4,13 @@
 #include <wininet.h>
 
 #include "shared.h"
+#include "hwid.h"
+#include "system.h"
+#include "../shared/cod2_dvars.h"
+#include "../shared/cod2_client.h"
+#include "../shared/cod2_net.h"
+#include "../shared/cod2_cmd.h"
+#include "../shared/cod2_shared.h"
 
 
 #define cl_updateAvailable (*(dvar_t **)(0x0096b644))
@@ -11,18 +18,36 @@
 #define cl_updateOldVersion (*(dvar_t **)(0x0096b64c))
 #define cl_updateFiles (*(dvar_t **)(0x0096b5d4))
 
-struct netaddr_s updater_address;
-dvar_t* sv_update;
+#define clientState                   (*((clientState_e*)0x00609fe0))
+#define demo_isPlaying                (*((int*)0x0064a170))
+
+int                 updater_lastClientState = -1;
+int                 updater_lastMainMenuClosed = 0;
+bool                updater_waitingForResponse = false;
+int                 updater_waitingForResponseRepeats = 0;
+DWORD               updater_waitingForResponseTime = 0;
+bool                updater_forcedUpdate = false;
+struct netaddr_s    updater_address = { NA_INIT, {0}, 0, {0} };
+dvar_t*             sv_update;
 
 extern dvar_t *cl_hwid;
+extern dvar_t *cl_hwid2;
+extern char hwid_old[33];  
+extern char hwid_regid[33];
+extern char hwid_changed_diff[1024];
+extern int hwid_changed_count;
 
 
-bool updater_downloadDLL(const char *url, const char *downloadPath, char *errorBuffer, size_t errorBufferSize) {
+void updater_showForceUpdateDialog() {
+    Com_Error(ERR_DROP, "Update required\n\nA new version of CoD2x must be installed.\nPlease update to version %s.\n", cl_updateVersion->value.string);
+}
+
+bool updater_downloadDLL(const char *url, const char *downloadPath, char *errorBuffer, size_t errorBufferSize, int retryCount = 0) {
     // Initialize WinINet
     HINTERNET hInternet = InternetOpenA("CoD2x " APP_VERSION " Update Downloader", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
     if (!hInternet) {
         snprintf(errorBuffer, errorBufferSize, "Failed to initialize WinINet.");
-        return 0;
+        return false;
     }
 
     // Open URL
@@ -30,18 +55,17 @@ bool updater_downloadDLL(const char *url, const char *downloadPath, char *errorB
     if (!hFile) {
         snprintf(errorBuffer, errorBufferSize, "Failed to open URL '%s'.", url);
         InternetCloseHandle(hInternet);
-        return 0;
+        return false;
     }
 
     // Check HTTP status code
     DWORD statusCode = 0;
     DWORD statusCodeSize = sizeof(statusCode);
-
     if (!HttpQueryInfoA(hFile, HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER, &statusCode, &statusCodeSize, NULL)) {
         snprintf(errorBuffer, errorBufferSize, "Failed to query HTTP status code for URL '%s'.", url);
         InternetCloseHandle(hFile);
         InternetCloseHandle(hInternet);
-        return 0;
+        return false;
     }
 
     // Handle HTTP errors (e.g., 404 Not Found)
@@ -49,7 +73,17 @@ bool updater_downloadDLL(const char *url, const char *downloadPath, char *errorB
         snprintf(errorBuffer, errorBufferSize, "HTTP error %lu encountered for URL '%s'.", statusCode, url);
         InternetCloseHandle(hFile);
         InternetCloseHandle(hInternet);
-        return 0;
+        return false;
+    }
+
+    // Retrieve expected file size from the Content-Length header.
+    DWORD contentLength = 0;
+    DWORD contentLengthSize = sizeof(contentLength);
+    if (!HttpQueryInfoA(hFile, HTTP_QUERY_CONTENT_LENGTH | HTTP_QUERY_FLAG_NUMBER, &contentLength, &contentLengthSize, NULL)) {
+        snprintf(errorBuffer, errorBufferSize, "Failed to retrieve content length for URL '%s'.", url);
+        InternetCloseHandle(hFile);
+        InternetCloseHandle(hInternet);
+        return false;
     }
 
     // Create file using CreateFile
@@ -67,21 +101,23 @@ bool updater_downloadDLL(const char *url, const char *downloadPath, char *errorB
         snprintf(errorBuffer, errorBufferSize, "Failed to create file at '%s'.", downloadPath);
         InternetCloseHandle(hFile);
         InternetCloseHandle(hInternet);
-        return 0;
+        return false;
     }
 
     // Download and write data
     char buffer[4096];
     DWORD bytesRead;
     DWORD bytesWritten;
+    DWORD totalBytesDownloaded = 0;
 
     while (InternetReadFile(hFile, buffer, sizeof(buffer), &bytesRead) && bytesRead > 0) {
+        totalBytesDownloaded += bytesRead;
         if (!WriteFile(hLocalFile, buffer, bytesRead, &bytesWritten, NULL)) {
             snprintf(errorBuffer, errorBufferSize, "Failed to write to file '%s'.", downloadPath);
             CloseHandle(hLocalFile);
             InternetCloseHandle(hFile);
             InternetCloseHandle(hInternet);
-            return 0;
+            return false;
         }
 
         if (bytesWritten != bytesRead) {
@@ -89,8 +125,25 @@ bool updater_downloadDLL(const char *url, const char *downloadPath, char *errorB
             CloseHandle(hLocalFile);
             InternetCloseHandle(hFile);
             InternetCloseHandle(hInternet);
-            return 0;
+            return false;
         }
+    }
+
+    // Validate the download integrity
+    if (totalBytesDownloaded != contentLength) {
+        CloseHandle(hLocalFile);
+        InternetCloseHandle(hFile);
+        InternetCloseHandle(hInternet);
+
+        // Try again
+        retryCount++;
+
+        if (retryCount > 3) {
+            snprintf(errorBuffer, errorBufferSize, "File download incomplete: expected %lu bytes, got %lu bytes.", contentLength, totalBytesDownloaded);
+            return false; // Too many retries
+        }
+
+        return updater_downloadDLL(url, downloadPath, errorBuffer, errorBufferSize, retryCount);
     }
 
     // Clean up
@@ -98,7 +151,7 @@ bool updater_downloadDLL(const char *url, const char *downloadPath, char *errorB
     InternetCloseHandle(hFile);
     InternetCloseHandle(hInternet);
 
-    return 1; // Success
+    return true; // Success
 }
 
 
@@ -142,38 +195,96 @@ bool updater_downloadAndReplaceDllFile(const char *url, char *errorBuffer, size_
     // Schedule the deletion of the old DLL
     // Since the DLL is locked by the application, we can't delete it immediately
     if (!MoveFileEx(dllFilePathOld, NULL, MOVEFILE_DELAY_UNTIL_REBOOT)) {
-        snprintf(errorBuffer, errorBufferSize, "Error scheduling old DLL deletion: '%s'.", dllFilePathOld);
-        return false;
+        // Since its possible to execute only with admin rights, dont show error
+        //snprintf(errorBuffer, errorBufferSize, "Error scheduling old DLL deletion: '%s'.", dllFilePathOld);
+        //return false;
     }
 
     return true;
 }
 
 
+bool updater_resolveServerAddress() {
+    // Resolve the Auto-Update server address if not already resolved
+    if (updater_address.type == NA_INIT) 
+    {
+        Com_DPrintf("Resolving AutoUpdate Server %s...\n", SERVER_UPDATE_URI);
+        if (!NET_StringToAdr(SERVER_UPDATE_URI, &updater_address))
+        {
+            Com_Printf("\nFailed to resolve AutoUpdate server %s.\n", SERVER_UPDATE_URI);
+            return false;
+        }
+
+        updater_address.port = BigShort(SERVER_UPDATE_PORT); // Swap the port bytes
+
+        Com_DPrintf("AutoUpdate resolved to %s\n", NET_AdrToString(updater_address));
+    }
+    return true;
+}
+
+
 
 // This function is called on startup to check for updates
-// Original func: 0x0041162f 
+// Original func: 0x0041162f
 bool updater_sendRequest() {
 
-    Com_DPrintf("Resolving AutoUpdate Server %s...\n", SERVER_UPDATE_URI);
-    if (!NET_StringToAdr(SERVER_UPDATE_URI, &updater_address))
+    // Resolve the Auto-Update server address if not already resolved
+    updater_resolveServerAddress();
+
+    Com_Printf("Auto-Updater: Checking for updates...\n");
+
+    char udpPayload[4096];
+
+    if (dedicated->value.boolean == 0) // Client
     {
-        Com_Printf("\nFailed to resolve AutoUpdate server %s.\n", SERVER_UPDATE_URI);
-        return 0;
+        int hwid = cl_hwid ? cl_hwid->value.integer : 0;
+        const char* hwid2 = cl_hwid2 ? cl_hwid2->value.string : "";
+
+        char CDKeyHash[34];
+        CL_BuildMd5StrFromCDKey(CDKeyHash);
+
+        char hwid_changed_diff_escaped[1024] = {};
+        // Escape the hwid_changed_diff for use in the UDP payload
+        for (size_t i = 0; i < sizeof(hwid_changed_diff) - 1 && hwid_changed_diff[i] != '\0'; ++i) {
+            if (hwid_changed_diff[i] == '"') {
+                hwid_changed_diff_escaped[i] = '\'';
+            } else {
+                hwid_changed_diff_escaped[i] = hwid_changed_diff[i];
+            }
+        }
+
+        char data[2048] = {0};
+        snprintf(data, sizeof(data), "\"%s\" \"%s\" \"%i\" \"%s\" \"%s\" \"%i\" \"%s\" \"%s\"",
+            CDKeyHash, hwid_regid, hwid, hwid2, hwid_old, hwid_changed_count, hwid_changed_diff_escaped, SYS_VERSION_INFO);
+
+        // Base64 encode the data
+        char encodedData[2800] = {0};
+        int base64status = base64_encode((const uint8_t*)data, strlen(data), encodedData, sizeof(encodedData));
+        if (base64status < 0) {
+            SHOW_ERROR("Failed to encode data for Auto-Update request.");
+            exit(1);
+        }
+
+        // Calculate the CRC16 of the data
+        uint16_t crc = crc16_ccitt((const uint8_t*)encodedData, strlen(encodedData));
+
+        // Format the UDP payload
+        snprintf(udpPayload, sizeof(udpPayload),
+            "getUpdateInfo3 \"CoD2x MP\" \"" APP_VERSION "\" \"win-x86\" \"client\" \"%04x\" \"%s\"\n",
+            crc, encodedData);
+
+    } else {
+        // Server
+        snprintf(udpPayload, sizeof(udpPayload),
+            "getUpdateInfo2 \"CoD2x MP\" \"" APP_VERSION "\" \"win-x86\" \"server\"\n");
     }
 
-    updater_address.port = BigShort(SERVER_UPDATE_PORT); // Swap the port bytes
 
-    Com_DPrintf("AutoUpdate resolved to %s\n", NET_AdrToString(updater_address));
-
-    Com_Printf("Checking for updates...\n");
-
-    // Send the request to the Auto-Update server
-    char* udpPayload = (dedicated->value.boolean == 0) ? 
-        va("getUpdateInfo2 \"CoD2x MP\" \"" APP_VERSION "\" \"win-x86\" \"client\" \"%i\"\n", cl_hwid->value.integer): // Client
-        va("getUpdateInfo2 \"CoD2x MP\" \"" APP_VERSION "\" \"win-x86\" \"server\"\n"); // Server
 
     bool status = NET_OutOfBandPrint(NS_CLIENT, updater_address, udpPayload);
+
+    updater_waitingForResponse = true;
+    updater_waitingForResponseTime = GetTickCount();
 
     Com_Printf("-----------------------------------\n");
 
@@ -199,6 +310,11 @@ void updater_updatePacketResponse(struct netaddr_s addr)
     }
 
     Com_Printf("-----------------------------------\n");
+
+    updater_waitingForResponse = false;
+    updater_waitingForResponseRepeats = 0;
+
+    hwid_clearRegistryFromHWIDChange();
 
     const char* updateAvailableNumber = Cmd_Argv(1);
     int updateAvailable = atol(updateAvailableNumber);
@@ -228,6 +344,15 @@ void updater_updatePacketResponse(struct netaddr_s addr)
             Dvar_SetString(cl_updateFiles, updateFile);
             Dvar_SetString(cl_updateVersion, newVersionString);
             Dvar_SetString(cl_updateOldVersion, APP_VERSION);
+
+            // Forced update
+            if (updateAvailable == 2) {
+                updater_forcedUpdate = true;
+
+                if (dedicated->value.integer == 0 && clientState > CLIENT_STATE_DISCONNECTED && clientState < CLIENT_STATE_CONNECTED && demo_isPlaying == 0) {
+                    updater_showForceUpdateDialog();
+                }
+            }
         }
 
     } else {
@@ -250,8 +375,8 @@ void updater_dialogConfirmed() {
     char errorBuffer[1024];
     bool ok = updater_downloadAndReplaceDllFile(cl_updateFiles->value.string, errorBuffer, sizeof(errorBuffer));
     if (ok) {
-        // Restart the application
-        ShellExecute(NULL, "open", EXE_PATH, NULL, NULL, SW_SHOWNORMAL);
+        // Restart the application with command line arguments
+        ShellExecute(NULL, "open", EXE_PATH, EXE_COMMAND_LINE, NULL, SW_SHOWNORMAL);
         ExitProcess(0);
     } else {
         Com_Error(ERR_DROP, "Failed to download and replace file.\n\n%s", errorBuffer);
@@ -260,28 +385,60 @@ void updater_dialogConfirmed() {
 
 
 
-
-/** Called only once on game start after common inicialization. Used to initialize variables, cvars, etc. */
-void updater_init() {
-
-    for (int i = 0; i <= 1; i++)
-    {
-        dvarFlags_e flags = i == 0 ? 
-            (dvarFlags_e)(DVAR_LATCH | DVAR_CHANGEABLE_RESET) : // allow the value to be changed via cmd when starting the game
-            (dvarFlags_e)(DVAR_ROM | DVAR_CHANGEABLE_RESET);    // then make it read-only to avoid changes
-
-        sv_update = Dvar_RegisterBool("sv_update", true, flags);
-    }
-
+void updater_checkForUpdate() {
     // Server
     if (dedicated->value.boolean > 0) {
         // Send the request to the Auto-Update server
-        if (sv_update->value.boolean) {
+        if (sv_update->value.boolean && sv_running->value.boolean) {
             updater_sendRequest();
         }
     } else {
         updater_sendRequest();
     }
+}
+
+
+/** Called on renderer load (also after vid_restart) */
+void updater_renderer() {
+    updater_lastClientState = -1; // Reset last client state to ensure we check for updates on next frame
+}
+
+/** Called every frame on frame start. */
+void updater_frame() {
+    // If the forced update is available and player leaves main menu, show error
+    if (updater_forcedUpdate && dedicated->value.integer == 0 && clientState > CLIENT_STATE_DISCONNECTED && clientState < CLIENT_STATE_CONNECTED && demo_isPlaying == 0) {
+        updater_showForceUpdateDialog();
+    }  
+    
+    // If player disconnect (so main menu is opened), check for updates again
+    if (clientState != updater_lastClientState && clientState == CLIENT_STATE_DISCONNECTED) {
+        updater_waitingForResponseRepeats = 0;
+        updater_checkForUpdate(); // Check for updates again
+    }
+
+    // If we opened main menu while we were connected to the server, check for updates
+    if (clientState == CLIENT_STATE_ACTIVE && !cg.isMainMenuClosed && cg.isMainMenuClosed != updater_lastMainMenuClosed) {
+        updater_waitingForResponseRepeats = 0;
+        updater_checkForUpdate(); // Check for updates again
+    }
+
+    // We did not receive a response from the Auto-Update server within 5 seconds
+    if (updater_waitingForResponse && (GetTickCount() - updater_waitingForResponseTime) > 5000 && updater_waitingForResponseRepeats < 5) {
+        Com_Printf("Auto-Updater: Request timed out.\n");
+        // Check again for updates
+        updater_waitingForResponse = false;
+        updater_waitingForResponseRepeats++;
+        updater_checkForUpdate();
+    }
+
+    updater_lastClientState = clientState;
+    updater_lastMainMenuClosed = cg.isMainMenuClosed; // Update last main menu closed state
+}
+
+
+/** Called only once on game start after common inicialization. Used to initialize variables, cvars, etc. */
+void updater_init() {
+    sv_update = Dvar_RegisterBool("sv_update", true, (dvarFlags_e)(DVAR_CHANGEABLE_RESET));
 }
 
 /** Called before the entry point is called. Used to patch the memory. */

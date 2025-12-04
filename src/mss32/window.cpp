@@ -6,6 +6,10 @@
 
 #include "shared.h"
 #include "rinput.h"
+#include "demo.h"
+#include "../shared/cod2_dvars.h"
+#include "../shared/cod2_client.h"
+
 
 
 #define vid_xpos                    (*((dvar_t**)0x00d77158))
@@ -13,12 +17,13 @@
 #define r_fullscreen                (*((dvar_t**)0x00d77128))
 #define r_autopriority              (*((dvar_t**)0x00d77130))
 #define in_mouse                    (*((dvar_t**)0x00d52a4c))
-#define cl_bypassMouseInput         (*((dvar_t**)0x006067d0))
+#define cl_bypassMouseInput         (*((dvar_t**)0x006067d0))   // 1 = control ingame mouse movement even if menu is opened
 
 #define r_mode                      (*((dvar_t**)(gfx_module_addr + 0x001ce688)))
 #define r_displayRefresh            (*((dvar_t**)(gfx_module_addr + 0x001ce804)))
 #define r_fullscreen_rendered       (*((dvar_t**)(gfx_module_addr + 0x001ce60c)))
 #define r_monitor                   (*((dvar_t**)(gfx_module_addr + 0x001ce610)))
+#define r_gamma                     (*((dvar_t**)(gfx_module_addr + 0x001ce62c)))
 
 #define R_GetMonitorFromCvars       ((HMONITOR (__cdecl*)())(gfx_module_addr + 0x000127d0))
 
@@ -44,11 +49,147 @@
 #define clientState                 (*((clientState_e*)0x00609fe0))
 
 dvar_t* m_debug;
+dvar_t* m_enable = NULL;    // 1 = allow moving ingame and menu mouse cursor; 0 = bypass mouse movement, but still process the system cursor and mouse events
 
 int minWidth = 0;
 int minHeight = 0;
 
 bool in_menu_last = true;
+int window_clientStateLast = -1;
+
+// Global state for gamma handling.
+static HDC gamma_currentDC = NULL;
+static char gamma_currentDeviceName[32] = "";
+static WORD gamma_originalRamp[3][256] = { 0 };
+static bool gamma_modified = false;
+static bool gamma_warningShowed = false;
+static float gamma_previous = 1.0f; // Previous gamma value to detect changes
+
+
+
+// Creates a gamma ramp from the provided gamma value.
+// A gamma of 1.0 results in an identity ramp.
+static void gamma_createRamp(float gamma, WORD ramp[3][256])
+{
+    for (int i = 0; i < 256; i++)
+    {
+        double normalized = i / 255.0;
+        double value = pow(normalized, 1.0 / gamma);
+        int rampValue = (int)(value * 65535.0 + 0.5);
+        if (rampValue > 65535)
+            rampValue = 65535;
+        ramp[0][i] = ramp[1][i] = ramp[2][i] = (WORD)rampValue;
+    }
+}
+
+// Restores the original gamma ramp on the current device and cleans up.
+void gamma_restore()
+{
+    if (gamma_currentDC && gamma_modified)
+    {
+        // Restore the saved gamma ramp.
+        SetDeviceGammaRamp(gamma_currentDC, gamma_originalRamp);
+        gamma_modified = false;
+    }
+    if (gamma_currentDC)
+    {
+        DeleteDC(gamma_currentDC);
+        gamma_currentDC = NULL;
+        gamma_currentDeviceName[0] = '\0';
+    }
+}
+
+// Updates the gamma ramp for the monitor on which 'hWnd' is located.
+// When in fullscreen (r_fullscreen true), the gamma is restored.
+// Otherwise, if gamma != 1.0 the new ramp is applied.
+// Call this function on WM_MOVE or whenever the window location changes.
+bool gamma_update()
+{
+    HWND hWnd = win_hwnd;
+    
+    // Get dvar by name to avoid error when renderer is not loaded (server)
+    dvar_t* gammaCvar = Dvar_GetDvarByName("r_gamma");
+    if (gammaCvar == nullptr) {
+        return true;
+    }
+    float gamma = gammaCvar->value.decimal;
+
+
+    // Check window mode. If fullscreen, restore gamma and do nothing.
+    if (r_fullscreen->value.boolean || win_hwnd == NULL)
+    {
+        gamma_restore();
+        return true;
+    }
+
+    // Determine which monitor the window is on.
+    HMONITOR hMonitor = MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST);
+    MONITORINFOEX mi;
+    ZeroMemory(&mi, sizeof(MONITORINFOEX));
+    mi.cbSize = sizeof(MONITORINFOEX);
+    if (!GetMonitorInfo(hMonitor, &mi))
+        return false;
+
+    // If we are already using this monitor, then update or restore.
+    if (gamma_currentDC && strcmp(gamma_currentDeviceName, mi.szDevice) == 0)
+    {
+        if (gamma == 1.0f)
+        {
+            gamma_restore();
+        }
+        else
+        {
+            WORD newRamp[3][256] = { 0 };
+            gamma_createRamp(gamma, newRamp);
+            if (SetDeviceGammaRamp(gamma_currentDC, newRamp))
+            {
+                gamma_modified = true;
+            }
+        }
+        return true;
+    }
+    else
+    {
+        // New monitor: restore gamma on the old monitor before switching.
+        gamma_restore();
+
+        // Create a device context for the new monitor by its device name.
+        gamma_currentDC = CreateDC(NULL, mi.szDevice, NULL, NULL);
+        if (!gamma_currentDC)
+            return false;
+        strcpy(gamma_currentDeviceName, mi.szDevice);
+
+        // Save the original gamma ramp.
+        if (!GetDeviceGammaRamp(gamma_currentDC, gamma_originalRamp))
+        {
+            DeleteDC(gamma_currentDC);
+            gamma_currentDC = NULL;
+            gamma_currentDeviceName[0] = '\0';
+            return false;
+        }
+
+        // If gamma is 1.0, no change is needed.
+        if (gamma == 1.0f)
+            return true;
+
+        // Create and set the new gamma ramp.
+        WORD newRamp[3][256] = { 0 };
+        gamma_createRamp(gamma, newRamp);
+        if (!SetDeviceGammaRamp(gamma_currentDC, newRamp))
+        {
+            if (!gamma_warningShowed)
+                MessageBoxA(NULL, "Failed to apply gamma for the monitor.", "Gamma Warning", MB_ICONWARNING | MB_OK);
+            gamma_warningShowed = true;
+            gamma_restore();
+            return false;
+        }
+        gamma_modified = true;
+        return true;
+    }
+}
+
+
+
 
 
 // 004648e0
@@ -79,6 +220,7 @@ void Mouse_ActivateIngameCursor()
 
 
 void Mouse_SetMenuCursorPos(int x, int y) {
+
     menu_cursorX = x;
     menu_cursorY = y;
 
@@ -101,8 +243,8 @@ void Mouse_ProcessMovement() {
     RECT clientRect;
     GetClientRect(win_hwnd, &clientRect); // Get the inner area of the window
 
-
-    bool in_menu = ((input_mode & 8) != 0 && !cl_bypassMouseInput->value.boolean) || clientState < CLIENT_STATE_ACTIVE;
+    // in_menu = if we control menu cursor
+    bool in_menu = ((input_mode & 8) != 0 && !cl_bypassMouseInput->value.boolean && m_enable->value.boolean) || clientState < CLIENT_STATE_PRIMED;
     bool menu_changed = in_menu != in_menu_last;
     in_menu_last = in_menu;
 
@@ -216,6 +358,11 @@ void Mouse_ProcessMovement() {
         if (m_debug->value.boolean && (x_offset != 0 || y_offset != 0))
             Com_Printf("Mouse move offset: (%d %d) (source: %s)\n", x_offset, y_offset, rinput_is_enabled() ? "rinput" : "system");
 
+        // Mouse movement is bypassed
+        if (!m_enable->value.boolean) {
+            return;
+        }
+
         if (in_menu) {
 
             int newMenuX = menu_cursorX + x_offset;
@@ -243,11 +390,26 @@ void Mouse_ProcessMovement() {
 // 00464b30
 void Mouse_Loop()
 {
+    if (!win_hwnd)
+        return;
+
     rinput_mouse_loop();
 
     if (mouse_isEnabled)
     {
         Mouse_ProcessMovement();
+    }
+
+    // Get dvar by name to avoid error when renderer is not loaded (server)
+    dvar_t* gammaCvar = Dvar_GetDvarByName("r_gamma");
+    if (gammaCvar == nullptr)
+        return;
+
+    float gamma = gammaCvar->value.decimal;
+    if (gamma != gamma_previous) {
+        gamma_previous = gamma;
+
+        gamma_update();
     }
 }
 
@@ -271,10 +433,22 @@ LRESULT CALLBACK CoD2WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
         }
 
 
+        case WM_CLOSE: {
+            // Prevent the window from closing
+            if (demo_getDemoForUpload()) {
+                demo_scheduleCloseAfterUpload();
+                return 0;
+            }
+            break; // allow default handling
+        }
+
+
         case WM_DESTROY: {
             
             rinput_on_main_window_destory();
-            
+
+            gamma_restore();
+
             win_hwnd = NULL;
 
             callOriginal = false;
@@ -290,7 +464,7 @@ LRESULT CALLBACK CoD2WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
         {
             // In windowed borderless mode the menu cursor is based on the system cursor.
             // Since we are hiding the system cursor, it wont automatically activate the window when clicking, so do it manually
-            if (r_fullscreen->value.integer == 0 && !win_isActivated) {
+            if (r_fullscreen->value.boolean == 0 && !win_isActivated) {
                 SetForegroundWindow(hwnd);
             }
             break;
@@ -312,7 +486,7 @@ LRESULT CALLBACK CoD2WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
 
         // Called when the window is moved
         case WM_MOVE: {
-            if (r_fullscreen->value.integer == 0) // Windowed mode
+            if (r_fullscreen->value.boolean == 0) // Windowed mode
             {
                 RECT lpRect;
                 lpRect.left = 0;
@@ -338,6 +512,8 @@ LRESULT CALLBACK CoD2WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
 
                 if (win_isActivated)
                     mouse_windowIsActive = 1;
+
+                gamma_update();
             }
 
             // Original function also contained logic to handle hiding the cursor, thats removed now
@@ -360,8 +536,16 @@ LRESULT CALLBACK CoD2WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
             if (bActivated && bMinimized == 0) {
                 win_isActivated = 1;              
                 ((void (*)())0x0042c600)(); // Com_TouchMemory();
+
+                logger_add("Window activated");
+
+                gamma_update();
             } else {
                 win_isActivated = 0;
+
+                logger_add("Window deactivated / minimized");
+
+                gamma_restore();
             }
 
             mouse_windowIsActive = win_isActivated;
@@ -502,8 +686,31 @@ int R_CreateWindow()
 
 
 
+
+/** Called every frame at the start of the frame. */
+void window_frame() {
+
+    // Player disconnected from the server
+    if (clientState != window_clientStateLast && clientState == CLIENT_STATE_CONNECTED) {
+        Dvar_SetBool(m_enable, true); // enable mouse movement
+    }
+
+    // First frame
+    if (window_clientStateLast == -1) {
+        window_clientStateLast = clientState; // set it now to avoid running this code again (Com_Error jumps to exception handler)
+      
+        // Check if sound is initialized properly
+        if (dedicated->value.integer == 0 && *(int*)0xc94ed4 == 0) {
+            Com_Error(ERR_DROP, "Sound system failed to initialize.\n\nThe game might crash at any time.\nPlease check your sound drivers.");
+        }
+    }
+
+    window_clientStateLast = clientState;
+}
+
+
 // Called when the game loaded the renderer DLL
-void window_hook_rendered() {
+void window_rendered() {
 
     // Patch the function that creates the window
     patch_call(gfx_module_addr + 0x00012d69, (unsigned int)R_CreateWindow);
@@ -522,7 +729,8 @@ void window_init() {
     vid_ypos = Dvar_RegisterInt("vid_ypos", 22, -100000, 100000, (enum dvarFlags_e)(DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET));
     r_fullscreen = Dvar_RegisterBool("r_fullscreen", true, (enum dvarFlags_e)(DVAR_ARCHIVE | DVAR_LATCH | DVAR_CHANGEABLE_RESET));
     r_autopriority = Dvar_RegisterBool("r_autopriority", false, (enum dvarFlags_e)(DVAR_ARCHIVE | DVAR_CHANGEABLE_RESET));
-
+    
+    m_enable = Dvar_RegisterBool("m_enable", true, (enum dvarFlags_e)(DVAR_CHANGEABLE_RESET));
     m_debug = Dvar_RegisterBool("m_debug", false, (enum dvarFlags_e)(DVAR_CHANGEABLE_RESET));
 }
 

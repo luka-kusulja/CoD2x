@@ -10,6 +10,10 @@
 
 #include "shared.h"
 #include "../shared/common.h"
+#include "../shared/cod2_common.h"
+#include "../shared/cod2_dvars.h"
+#include "../shared/cod2_net.h"
+#include "../shared/cod2_cmd.h"
 
 
 struct netaddr_s updater_address;
@@ -19,7 +23,7 @@ dvar_t* sv_update;
 
 void download_and_swap_async(const char *current_version, const char *new_version, const char *url) {
     
-    char libCoD2x_new[512], libCoD2x_old[512], libCoD2x_log[512], cmd[1024];
+    char libCoD2x_new[512], libCoD2x_old[512], libCoD2x_log[512], cmd[2048];
 
     snprintf(libCoD2x_new, sizeof(libCoD2x_new), "%s.new", LIB_PATH);
     snprintf(libCoD2x_old, sizeof(libCoD2x_old), "%s.%s.old", LIB_PATH, current_version);
@@ -38,11 +42,15 @@ void download_and_swap_async(const char *current_version, const char *new_versio
     off += snprintf(cmd + off, sizeof(cmd) - off, "echo \"Url:             %s\"; ", url);
     off += snprintf(cmd + off, sizeof(cmd) - off, "echo \"Destination:     %s\"; ", libCoD2x_new);
     off += snprintf(cmd + off, sizeof(cmd) - off, "rm -f \"%s\"; ", libCoD2x_old); // Remove old backup
-    off += snprintf(cmd + off, sizeof(cmd) - off, "curl -o \"%s\" -L -s -S -f -w \"Downloaded: %%{size_download} bytes at %%{speed_download} bytes/sec in %%{time_total} seconds\\n\" \"%s\"; ", libCoD2x_new, url); // Download new library, -L follow redirects, -s silent, -S show errors, -f fail on http errors, -w output format
+    off += snprintf(cmd + off, sizeof(cmd) - off, "curl --connect-timeout 2 --max-time 8 --retry 3 --retry-delay 2 -o \"%s\" -L -s -S -f -w \"Downloaded: %%{size_download} bytes at %%{speed_download} bytes/sec in %%{time_total} seconds\\n\" \"%s\"; ", libCoD2x_new, url);
     off += snprintf(cmd + off, sizeof(cmd) - off, "mv -f \"%s\" \"%s\"; ", LIB_PATH, libCoD2x_old); // Move current lib to .old
     off += snprintf(cmd + off, sizeof(cmd) - off, "mv -f \"%s\" \"%s\"; ", libCoD2x_new, LIB_PATH); // Replace with new lib
     off += snprintf(cmd + off, sizeof(cmd) - off, "echo \"==========================================================================================\"; ");
     off += snprintf(cmd + off, sizeof(cmd) - off, "} >> \"%s\" 2>&1' </dev/null >/dev/null 2>&1 &", libCoD2x_log); // Redirect all output to log and run in background
+
+    Com_DPrintf("\nShell:\n");
+    Com_DPrintf("%s", cmd);
+    Com_DPrintf("\n\n");
 
     // Execute the constructed command asynchronously
     system(cmd);
@@ -121,22 +129,18 @@ void updater_updatePacketResponse(struct netaddr_s addr)
     return;
 }
 
-/** Called only once on game start after common inicialization. Used to initialize variables, cvars, etc. */
-void updater_init() {
 
-    for (int i = 0; i <= 1; i++)
-    {
-        dvarFlags_e flags = i == 0 ? 
-            (dvarFlags_e)(DVAR_LATCH | DVAR_CHANGEABLE_RESET) : // allow the value to be changed via cmd when starting the game
-            (dvarFlags_e)(DVAR_ROM | DVAR_CHANGEABLE_RESET);    // then make it read-only to avoid changes
-
-        sv_update = Dvar_RegisterBool("sv_update", true, flags);
-    }
-
+void updater_checkForUpdate() {
     // Send the request to the Auto-Update server
-    if (sv_update->value.boolean) {
+    if (sv_update->value.boolean && sv_running->value.boolean) {
         updater_sendRequest();
     }
+}
+
+
+/** Called only once on game start after common inicialization. Used to initialize variables, cvars, etc. */
+void updater_init() {
+    sv_update = Dvar_RegisterBool("sv_update", true, (dvarFlags_e)(DVAR_CHANGEABLE_RESET));
 }
 
 

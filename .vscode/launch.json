@@ -6,7 +6,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/bin/windows/CoD2MP_s.exe",
-            "args": ["${config:CoD2x.launch_args_win_client}"],
+            "args": ["+exec launch_args_win_client.cfg"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/bin/windows",
             "environment": [],
@@ -20,7 +20,7 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "Build MSS32",
+            "preLaunchTask": "Build Win",
             "internalConsoleOptions": "neverOpen"
         },
         {
@@ -28,7 +28,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/bin/windows/CoD2MP_s.exe",
-            "args": ["${config:CoD2x.launch_args_win_client_server}"],
+            "args": ["+exec launch_args_win_client_server.cfg"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/bin/windows",
             "environment": [],
@@ -42,7 +42,7 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "Build MSS32",
+            "preLaunchTask": "Build Win",
             "internalConsoleOptions": "neverOpen"
         },
         {
@@ -50,7 +50,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/bin/windows/CoD2MP_s.exe",
-            "args": ["${config:CoD2x.launch_args_win_server}"],
+            "args": ["+set dedicated 2 +exec launch_args_win_server.cfg"],
             "cwd": "${workspaceFolder}/bin/windows",
             "externalConsole": true,
             "MIMode": "gdb",
@@ -62,7 +62,7 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "Build MSS32"
+            "preLaunchTask": "Build Win"
         },
         {
             "name": "Linux server",

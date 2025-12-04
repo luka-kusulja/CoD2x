@@ -3,7 +3,9 @@
 
 #include <windows.h>
 
-void window_hook_rendered();
+void gamma_restore();
+void window_frame();
+void window_rendered();
 void window_init();
 void window_patch();
 

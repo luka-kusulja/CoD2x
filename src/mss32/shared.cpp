@@ -2,6 +2,9 @@
 
 #include <windows.h>
 
+#include "../shared/cod2_common.h"
+#include "error.h"
+
 void getErrorMessage(DWORD errorCode, char* buffer, size_t bufferSize) {
     // Temporary buffer for the system error message
     char messageBuffer[256] = {0};
@@ -21,6 +24,17 @@ void getErrorMessage(DWORD errorCode, char* buffer, size_t bufferSize) {
     snprintf(buffer, bufferSize, "%s (error %lu)", messageBuffer, errorCode);
 }
 
+void showErrorMessage(const char *title, const char *message, ...) {
+    char formattedMessage[1024];
+    va_list args;
+    va_start(args, message);
+    vsnprintf(formattedMessage, sizeof(formattedMessage), message, args);
+    va_end(args);
+
+    error_sendErrorData(formattedMessage);
+
+    MessageBox(NULL, formattedMessage, title, MB_ICONERROR | MB_OK | MB_TOPMOST);
+}
 
 void showErrorBox(const char *file, const char *function, int line, const char *format, ...) {
     char message[1024];
@@ -40,7 +54,9 @@ void showErrorBox(const char *file, const char *function, int line, const char *
     char fullMessage[1024 + 512];
     snprintf(fullMessage, sizeof(fullMessage), errorTemplate, message, file, function, line);
 
-    MessageBox(NULL, fullMessage, APP_NAME " - Error", MB_ICONERROR | MB_OK);
+    error_sendErrorData(fullMessage);
+
+    MessageBox(NULL, fullMessage, APP_NAME " - Error", MB_ICONERROR | MB_OK | MB_TOPMOST);
 }
 
 
